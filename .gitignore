@@ -1,0 +1,7 @@
+dist/
+docs/_build
+.venv
+.venv3
+.unit-state.db
+*.pyc
+__pycache__
