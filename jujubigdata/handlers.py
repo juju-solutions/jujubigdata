@@ -11,7 +11,7 @@
 # Apache License for more details.
 
 import re
-from subprocess import check_output
+from subprocess import check_call, check_output
 import time
 
 from path import Path
@@ -88,13 +88,18 @@ class HadoopBase(object):
         """
         Add the unit's private-address to /etc/hosts to ensure that Java
         can resolve the hostname of the server to its real IP address.
+        We derive our hostname from the unit_id, replacing / with -.
         """
         private_address = hookenv.unit_get('private-address')
-        hostname = check_output(['hostname']).strip()
-        hostfqdn = check_output(['hostname', '-f']).strip()
+        hostname = hookenv.local_unit().replace('/', '-')
+
+        etc_hostname = Path('/etc/hostname')
+        etc_hostname.write_text(hostname)
+        check_call(["hostname", "-F", "/etc/hostname"])
+
         etc_hosts = Path('/etc/hosts')
         hosts = etc_hosts.lines()
-        line = '%s %s %s' % (private_address, hostfqdn, hostname)
+        line = '%s %s' % (private_address, hostname)
         IP_pat = r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
         if not re.match(IP_pat, private_address):
             line = '# %s  # private-address did not return an IP' % line
@@ -176,6 +181,25 @@ class HadoopBase(object):
             r'export JAVA_HOME *=.*': 'export JAVA_HOME=%s' % java_home,
         })
 
+    def register_slaves(self, relation):
+        """
+        Add slaves to a hdfs or yarn master, determined by the relation name.
+
+        :param str relation: 'datanode' for registering HDFS slaves;
+                             'nodemanager' for registering YARN slaves.
+        """
+        slaves = helpers.all_ready_units(relation)
+        slaves_file = self.dist_config.path('hadoop_conf') / 'slaves'
+        slaves_file.write_lines(
+            [
+                '# DO NOT EDIT',
+                '# This file is automatically managed by Juju',
+            ] + [
+                data['hostname'] for slave, data in slaves
+            ]
+        )
+        slaves_file.chown('ubuntu', 'hadoop')
+
     def run(self, user, command, *args, **kwargs):
         """
         Run a Hadoop command as the `hdfs` user.
@@ -222,15 +246,22 @@ class HDFS(object):
             self._hadoop_daemon('start', 'datanode')
 
     def _remote(self, relation):
-        # If we're relating the client, hdfs-secondary, or yarn-master to
-        # hdfs-master, we'll be called during the namenode relation. If
-        # relating compute-slave to hdfs-master, we'll be called during the
-        # datanode relation.
+        """
+        Return the hostname of the unit on the other end of the given
+        relation (derived from that unit's name) and the port used to talk
+        to that unit.
+        :param str relation: Name of the relation, e.g. "datanode" or "namenode"
+        """
         unit, data = helpers.any_ready_unit(relation)
-        return data['private-address'], data['port']
+        host = unit.replace('/', '-')
+        return host, data['port']
 
     def _local(self):
-        host = hookenv.unit_get('private-address')
+        """
+        Return the local hostname (which we derive from our unit name),
+        and namenode port from our dist.yaml
+        """
+        host = hookenv.local_unit().replace('/', '-')
         port = self.hadoop_base.dist_config.port('namenode')
         return host, port
 
@@ -249,8 +280,8 @@ class HDFS(object):
 
     def configure_secondarynamenode(self):
         """
-        Configure the Secondary Namenode when the hadoop-hdfs-secondary
-        charm is deployed and related to hadoop-hdfs-master.
+        Configure the Secondary Namenode when the apache-hadoop-hdfs-secondary
+        charm is deployed and related to apache-hadoop-hdfs-master.
 
         The only purpose of the secondary namenode is to perform periodic
         checkpoints. The secondary name-node periodically downloads current
@@ -319,17 +350,7 @@ class HDFS(object):
         unitdata.kv().flush(True)
 
     def register_slaves(self):
-        slaves = helpers.all_ready_units('datanode')
-        slaves_file = self.hadoop_base.dist_config.path('hadoop_conf') / 'slaves'
-        slaves_file.write_lines(
-            [
-                '# DO NOT EDIT',
-                '# This file is automatically managed by Juju',
-            ] + [
-                data['hostname'] for slave, data in slaves
-            ]
-        )
-        slaves_file.chown('ubuntu', 'hadoop')
+        self.hadoop_base.register_slaves('datanode')
 
     def _hadoop_daemon(self, command, service):
         self.hadoop_base.run('hdfs', 'sbin/hadoop-daemon.sh',
@@ -368,14 +389,22 @@ class YARN(object):
             self._yarn_daemon('start', 'nodemanager')
 
     def _remote(self, relation):
-        # If we're relating client to yarn-master, we'll be called during the
-        # resourcemanager relation. If relating compute-slave to yarn-master,
-        # we'll be called during the nodemanager relation.
+        """
+        Return the hostname of the unit on the other end of the given
+        relation (derived from that unit's name) and the port used to talk
+        to that unit.
+        :param str relation: Name of the relation, e.g. "resourcemanager" or "nodemanager"
+        """
         unit, data = helpers.any_ready_unit(relation)
-        return data['private-address'], data['port'], data['historyserver-port']
+        host = unit.replace('/', '-')
+        return host, data['port'], data['historyserver-port']
 
     def _local(self):
-        host = '0.0.0.0'
+        """
+        Return the local hostname (which we derive from our unit name),
+        and resourcemanager port from our dist.yaml
+        """
+        host = hookenv.local_unit().replace('/', '-')
         port = self.hadoop_base.dist_config.port('resourcemanager')
         history_port = self.hadoop_base.dist_config.port('jobhistory')
         return host, port, history_port
@@ -412,8 +441,7 @@ class YARN(object):
             props['yarn.nodemanager.aux-services'] = 'mapreduce_shuffle'
             props['yarn.resourcemanager.hostname'] = '{}'.format(host)
             props['yarn.resourcemanager.address'] = '{}:{}'.format(host, port)
-            props["yarn.log.server.url"] = "{}:{}/jobhistory/logs/".format(
-                'localhost' if host == '0.0.0.0' else host, dc.port('rm_log'))
+            props["yarn.log.server.url"] = "{}:{}/jobhistory/logs/".format(host, dc.port('rm_log'))
         mapred_site = dc.path('hadoop_conf') / 'mapred-site.xml'
         with utils.xmlpropmap_edit_in_place(mapred_site) as props:
             props["mapreduce.jobhistory.address"] = "{}:{}".format(host, history_port)
@@ -431,6 +459,9 @@ class YARN(object):
         Path(demo_target).chown('ubuntu', 'hadoop')
         unitdata.kv().set('yarn.client.demo.installed', True)
         unitdata.kv().flush(True)
+
+    def register_slaves(self):
+        self.hadoop_base.register_slaves('nodemanager')
 
     def _yarn_daemon(self, command, service):
         self.hadoop_base.run('yarn', 'sbin/yarn-daemon.sh',

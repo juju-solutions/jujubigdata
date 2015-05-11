@@ -11,11 +11,7 @@
 # Apache License for more details.
 
 import json
-from subprocess import check_call
 
-from path import Path
-
-from charmhelpers.core import host
 from charmhelpers.core import hookenv
 from charmhelpers.core.charmframework.helpers import Relation, any_ready_unit
 
@@ -107,23 +103,44 @@ class NameNode(SpecMatchingRelation):
     This is the relation that clients should use.
     """
     relation_name = 'namenode'
-    required_keys = ['private-address', 'port', 'webhdfs-port', 'ready']
+    required_keys = ['private-address', 'etc_hosts', 'port', 'webhdfs-port', 'ready']
 
-    def __init__(self, spec=None, hdfs_port=None, webhdfs_port=None):
-        self.hdfs_port = hdfs_port  # only needed for provides
+    def __init__(self, spec=None, port=None, webhdfs_port=None):
+        self.port = port  # only needed for provides
         self.webhdfs_port = webhdfs_port  # only needed for provides
+        utils.initialize_kv_host()
         super(NameNode, self).__init__(spec)
 
     def provide(self, remote_service, all_ready):
         data = super(NameNode, self).provide(remote_service, all_ready)
         if all_ready and DataNode().is_ready():
-            utils.wait_for_hdfs(400)  # will error on timeout
             data.update({
                 'ready': 'true',
-                'port': self.hdfs_port,
+                'etc_hosts': utils.get_kv_hosts(),
+                'port': self.port,
                 'webhdfs_port': self.webhdfs_port,
             })
         return data
+
+
+class NameNodeMaster(NameNode):
+    """
+    Alternate NameNode relation for DataNodes.
+    """
+    relation_name = 'datanode'
+    required_keys = ['private-address', 'etc_hosts', 'port', 'ready', 'ssh-key']
+
+    def provide(self, remote_service, all_ready):
+        data = super(NameNodeMaster, self).provide(remote_service, all_ready)
+        data.update({
+            'ssh-key': utils.get_ssh_key('hdfs'),
+        })
+        return data
+
+    def install_ssh_keys(self):
+        relation_values = self.filtered_data().values()[0]
+        ssh_key = relation_values.get('ssh-key')
+        utils.install_ssh_key('hdfs', ssh_key)
 
 
 class ResourceManager(SpecMatchingRelation):
@@ -133,11 +150,12 @@ class ResourceManager(SpecMatchingRelation):
     This is the relation that clients should use.
     """
     relation_name = 'resourcemanager'
-    required_keys = ['private-address', 'port', 'historyserver-port', 'ready']
+    required_keys = ['private-address', 'etc_hosts', 'port', 'historyserver-port', 'ready']
 
     def __init__(self, spec=None, port=None, historyserver_port=None):
         self.port = port  # only needed for provides
         self.historyserver_port = historyserver_port  # only needed for provides
+        utils.initialize_kv_host()
         super(ResourceManager, self).__init__(spec)
 
     def provide(self, remote_service, all_ready):
@@ -145,56 +163,10 @@ class ResourceManager(SpecMatchingRelation):
         if all_ready:
             data.update({
                 'ready': 'true',
+                'etc_hosts': utils.get_kv_hosts(),
                 'port': self.port,
                 'historyserver-port': self.historyserver_port,
             })
-        return data
-
-
-class DataNode(Relation):
-    """
-    Relation which communicates DataNode info back to NameNodes.
-    """
-    relation_name = 'datanode'
-    required_keys = ['private-address', 'hostname', 'hostfqdn']
-
-    def provide(self, remote_service, all_ready):
-        data = super(DataNode, self).provide(remote_service, all_ready)
-        host, fqdn = utils.get_hostname_data()
-        data.update({
-            'hostname': host,
-            'hostfqdn': fqdn,
-        })
-        return data
-
-
-class NameNodeMaster(NameNode):
-    """
-    Alternate NameNode relation for DataNodes.
-    """
-    relation_name = 'datanode'
-
-    def provide(self, remote_service, all_ready):
-        data = super(NameNodeMaster, self).provide(remote_service, all_ready)
-        if all_ready:
-            data['ready'] = 'true'
-        return data
-
-
-class NodeManager(Relation):
-    """
-    Relation which communicates NodeManager info back to ResourceManagers.
-    """
-    relation_name = 'nodemanager'
-    required_keys = ['private-address', 'hostname', 'hostfqdn']
-
-    def provide(self, remote_service, all_ready):
-        data = super(NodeManager, self).provide(remote_service, all_ready)
-        host, fqdn = utils.get_hostname_data()
-        data.update({
-            'hostname': host,
-            'hostfqdn': fqdn,
-        })
         return data
 
 
@@ -203,31 +175,51 @@ class ResourceManagerMaster(ResourceManager):
     Alternate ResourceManager relation for NodeManagers.
     """
     relation_name = 'nodemanager'
-    required_keys = ['private-address', 'ssh-key', 'ready']
-
-    def get_ssh_key(self):
-        sshdir = Path('/home/ubuntu/.ssh')
-        keyfile = sshdir / 'id_rsa'
-        pubfile = sshdir / 'id_rsa.pub'
-        if not pubfile.exists():
-            (sshdir / 'config').write_lines([
-                'Host *',
-                '    StrictHostKeyChecking no'
-            ], append=True)
-            check_call(['ssh-keygen', '-t', 'rsa', '-P', '', '-f', keyfile])
-            host.chownr(sshdir, 'ubuntu', 'hadoop')
-        return pubfile.text()
+    required_keys = ['private-address', 'etc_hosts', 'port', 'ready', 'ssh-key']
 
     def provide(self, remote_service, all_ready):
         data = super(ResourceManagerMaster, self).provide(remote_service, all_ready)
         data.update({
-            'ssh-key': self.get_ssh_key(),
+            'ssh-key': utils.get_ssh_key('yarn'),
         })
         return data
 
     def install_ssh_keys(self):
-        ssh_keys = self.filtered_relation_data().values()
-        Path('/home/ubuntu/.ssh/authorized_keys').write_lines(ssh_keys, append=True)
+        relation_values = self.filtered_data().values()[0]
+        ssh_key = relation_values.get('ssh-key')
+        utils.install_ssh_key('yarn', ssh_key)
+
+
+class DataNode(Relation):
+    """
+    Relation which communicates DataNode info back to NameNodes.
+    """
+    relation_name = 'datanode'
+    required_keys = ['private-address', 'hostname']
+
+    def provide(self, remote_service, all_ready):
+        data = super(DataNode, self).provide(remote_service, all_ready)
+        hostname = hookenv.local_unit().replace('/', '-')
+        data.update({
+            'hostname': hostname,
+        })
+        return data
+
+
+class NodeManager(Relation):
+    """
+    Relation which communicates NodeManager info back to ResourceManagers.
+    """
+    relation_name = 'nodemanager'
+    required_keys = ['private-address', 'hostname']
+
+    def provide(self, remote_service, all_ready):
+        data = super(NodeManager, self).provide(remote_service, all_ready)
+        hostname = hookenv.local_unit().replace('/', '-')
+        data.update({
+            'hostname': hostname,
+        })
+        return data
 
 
 class HadoopPlugin(Relation):

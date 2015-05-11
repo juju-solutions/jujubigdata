@@ -319,16 +319,6 @@ def run_as(user, command, *args, **kwargs):
     return run(['su', user, '-c', quoted], env=env)
 
 
-def get_hostname_data():
-    """
-    Return a tuple of the short hostname and fully qualified domain name
-    by running the hostname command on a unit.
-    """
-    hostname = check_output(['hostname']).strip()
-    hostfqdn = check_output(['hostname', '-f']).strip()
-    return (hostname, hostfqdn)
-
-
 def update_etc_hosts(hosts):
     '''
     Update /etc/hosts on the unit
@@ -339,43 +329,77 @@ def update_etc_hosts(hosts):
     hosts_contents = etc_hosts.lines()
 
     for key, data in ast.literal_eval(hosts).items():
-        found = False
-        line = '%s %s %s' % (data['private-address'], data['hostfqdn'], data['hostname'])
+        line = '%s %s' % (data['private-address'], data['hostname'])
         IP_pat = r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
         if not re.match(IP_pat, data['private-address']):
             line = '# %s  # INVALID IP' % line
-        # update existing entry
-        for l in range(0, len(hosts_contents)):
-            if hosts_contents[l].startswith(data['private-address']):
+        for l, hosts_line in enumerate(hosts_contents):
+            if re.match(r'(# )?%s\s' % data['private-address'], hosts_line):
+                # update existing host
                 hosts_contents[l] = line
-                found = True
-        # add new entry
-        if not found:
+                break
+        else:
+            # add new host
             hosts_contents.append(line)
 
         # write new /etc/hosts
         etc_hosts.write_lines(hosts_contents, append=False)
 
 
+def initialize_kv_host():
+    # get the hostname attrs from our local unit and update the kv store
+    local_ip = hookenv.unit_private_ip()
+    local_host = hookenv.local_unit().replace('/', '-')
+    update_kv_host(local_ip, local_host)
+
+
 def get_kv_hosts():
     unit_kv = unitdata.kv()
-    # all our hosts in the kv are prefixed with etc_host. they'll come
-    # out of the kv as a unicode object, so convert them to a json string
-    # for ease of use later.
+    # all our hosts in the kv are prefixed with 'etc_host.'; they'll come
+    # out of the kv as a unicode object, but convert them to a json string
+    # for ease of use later -- this string of hosts is what we set on
+    # various relations so units can update their local /etc/hosts file.
     kv_hosts = dumps(unit_kv.getrange('etc_host'))
     return kv_hosts
 
 
-def update_kv_host(ip, fqdn, host):
+def update_kv_host(ip, host):
     unit_kv = unitdata.kv()
 
     # store attrs in the kv as 'etc_host.<ip>'; kv.update will insert
     # a new record or update any existing key with current data.
     unit_kv.update({ip: {'private-address': ip,
-                         'hostfqdn': fqdn,
                          'hostname': host}},
                    prefix="etc_host.")
     unit_kv.flush(True)
+
+
+def get_ssh_key(user):
+    sshdir = Path('/home/%s/.ssh' % user)
+    if not sshdir.exists():
+        host.mkdir(sshdir, owner=user, group='hadoop', perms=0o755)
+    keyfile = sshdir / 'id_rsa'
+    pubfile = sshdir / 'id_rsa.pub'
+    authfile = sshdir / 'authorized_keys'
+    if not pubfile.exists():
+        (sshdir / 'config').write_lines([
+            'Host *',
+            '    StrictHostKeyChecking no'
+        ], append=True)
+        check_call(['ssh-keygen', '-t', 'rsa', '-P', '', '-f', keyfile])
+        host.chownr(sshdir, user, 'hadoop')
+    # allow ssh'ing to localhost; useful for things like start_dfs.sh
+    if not authfile.exists():
+        Path.copy(pubfile, authfile)
+    return pubfile.text()
+
+
+def install_ssh_key(user, ssh_key):
+    sshdir = Path('/home/%s/.ssh' % user)
+    if not sshdir.exists():
+        host.mkdir(sshdir, owner=user, group='hadoop', perms=0o755)
+    Path(sshdir / 'authorized_keys').write_text(ssh_key, append=True)
+    host.chownr(sshdir, user, 'hadoop')
 
 
 def wait_for_hdfs(timeout):
