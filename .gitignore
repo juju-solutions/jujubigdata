@@ -1,3 +1,4 @@
+jujubigdata/version.py
 dist/
 docs/_build
 .venv
