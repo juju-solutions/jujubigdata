@@ -277,6 +277,12 @@ class HDFS(object):
             props['dfs.namenode.http-address'] = '0.0.0.0:{}'.format(dc.port('nn_webapp_http'))
             # TODO: support SSL
             #props['dfs.namenode.https-address'] = '0.0.0.0:{}'.format(dc.port('nn_webapp_https'))
+            unit, secondary = helpers.any_ready_unit('secondary')
+            if secondary:
+                props['dfs.secondary.http.address'] = '{host}:{port}'.format(
+                    host=secondary['hostname'],
+                    port=secondary['port'],
+                )
 
     def configure_secondarynamenode(self):
         """

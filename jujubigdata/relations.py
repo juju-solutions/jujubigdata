@@ -96,14 +96,55 @@ class SpecMatchingRelation(Relation):
         return True
 
 
-class NameNode(SpecMatchingRelation):
+class SSHRelation(Relation):
+    ssh_user = 'ubuntu'
+
+    def __init__(self, *args, **kwargs):
+        super(SSHRelation, self).__init__(*args, **kwargs)
+        if 'ssh-key' not in self.required_keys:
+            self.required_keys.append('ssh-key')
+
+    def install_ssh_keys(self):
+        unit, data = any_ready_unit(self.relation_name)
+        ssh_key = data['ssh-key']
+        utils.install_ssh_key('yarn', ssh_key)
+
+    def provide(self, remote_service, all_ready):
+        data = super(SSHRelation, self).provide(remote_service, all_ready)
+        data.update({
+            'ssh-key': utils.get_ssh_key(self.ssh_user),
+        })
+        return data
+
+
+class EtcHostsRelation(Relation):
+    def __init__(self, *args, **kwargs):
+        super(EtcHostsRelation, self).__init__(*args, **kwargs)
+        if 'etc_hosts' not in self.required_keys:
+            self.required_keys.append('etc_hosts')
+
+    def provide(self, remote_service, all_ready):
+        data = super(EtcHostsRelation, self).provide(remote_service, all_ready)
+        data.update({
+            'etc_hosts': utils.get_kv_hosts(),
+        })
+        return data
+
+    def update_etc_hosts(self):
+        unit, data = any_ready_unit(self.relation_name)
+        master_hosts = data['etc_hosts']
+        hookenv.log('Updating /etc/hosts from %s: %s' % (unit, master_hosts))
+        utils.update_etc_hosts(master_hosts)
+
+
+class NameNode(SpecMatchingRelation, EtcHostsRelation):
     """
     Relation which communicates the NameNode (HDFS) connection & status info.
 
     This is the relation that clients should use.
     """
     relation_name = 'namenode'
-    required_keys = ['private-address', 'etc_hosts', 'port', 'webhdfs-port', 'ready']
+    required_keys = ['private-address', 'port', 'webhdfs-port', 'ready']
 
     def __init__(self, spec=None, port=None, webhdfs_port=None):
         self.port = port  # only needed for provides
@@ -116,41 +157,29 @@ class NameNode(SpecMatchingRelation):
         if all_ready and DataNode().is_ready():
             data.update({
                 'ready': 'true',
-                'etc_hosts': utils.get_kv_hosts(),
                 'port': self.port,
                 'webhdfs_port': self.webhdfs_port,
             })
         return data
 
 
-class NameNodeMaster(NameNode):
+class NameNodeMaster(NameNode, SSHRelation):
     """
     Alternate NameNode relation for DataNodes.
     """
     relation_name = 'datanode'
-    required_keys = ['private-address', 'etc_hosts', 'port', 'ready', 'ssh-key']
-
-    def provide(self, remote_service, all_ready):
-        data = super(NameNodeMaster, self).provide(remote_service, all_ready)
-        data.update({
-            'ssh-key': utils.get_ssh_key('hdfs'),
-        })
-        return data
-
-    def install_ssh_keys(self):
-        relation_values = self.filtered_data().values()[0]
-        ssh_key = relation_values.get('ssh-key')
-        utils.install_ssh_key('hdfs', ssh_key)
+    required_keys = ['private-address', 'port', 'ready']
+    ssh_user = 'hdfs'
 
 
-class ResourceManager(SpecMatchingRelation):
+class ResourceManager(SpecMatchingRelation, EtcHostsRelation):
     """
     Relation which communicates the ResourceManager (YARN) connection & status info.
 
     This is the relation that clients should use.
     """
     relation_name = 'resourcemanager'
-    required_keys = ['private-address', 'etc_hosts', 'port', 'historyserver-port', 'ready']
+    required_keys = ['private-address', 'port', 'historyserver-port', 'ready']
 
     def __init__(self, spec=None, port=None, historyserver_port=None):
         self.port = port  # only needed for provides
@@ -163,34 +192,22 @@ class ResourceManager(SpecMatchingRelation):
         if all_ready:
             data.update({
                 'ready': 'true',
-                'etc_hosts': utils.get_kv_hosts(),
                 'port': self.port,
                 'historyserver-port': self.historyserver_port,
             })
         return data
 
 
-class ResourceManagerMaster(ResourceManager):
+class ResourceManagerMaster(ResourceManager, SSHRelation):
     """
     Alternate ResourceManager relation for NodeManagers.
     """
     relation_name = 'nodemanager'
-    required_keys = ['private-address', 'etc_hosts', 'port', 'ready', 'ssh-key']
-
-    def provide(self, remote_service, all_ready):
-        data = super(ResourceManagerMaster, self).provide(remote_service, all_ready)
-        data.update({
-            'ssh-key': utils.get_ssh_key('yarn'),
-        })
-        return data
-
-    def install_ssh_keys(self):
-        relation_values = self.filtered_data().values()[0]
-        ssh_key = relation_values.get('ssh-key')
-        utils.install_ssh_key('yarn', ssh_key)
+    required_keys = ['private-address', 'port', 'ready']
+    ssh_user = 'yarn'
 
 
-class DataNode(Relation):
+class DataNode(SpecMatchingRelation):
     """
     Relation which communicates DataNode info back to NameNodes.
     """
@@ -202,6 +219,27 @@ class DataNode(Relation):
         hostname = hookenv.local_unit().replace('/', '-')
         data.update({
             'hostname': hostname,
+        })
+        return data
+
+
+class SecondaryNameNode(SpecMatchingRelation):
+    """
+    Relation which communicates SecondaryNameNode info back to NameNodes.
+    """
+    relation_name = 'datanode'
+    required_keys = ['private-address', 'hostname', 'port']
+
+    def __init__(self, spec=None, port=None):
+        self.port = port  # only needed for provides
+        super(SecondaryNameNode, self).__init__(spec)
+
+    def provide(self, remote_service, all_ready):
+        data = super(SecondaryNameNode, self).provide(remote_service, all_ready)
+        hostname = hookenv.local_unit().replace('/', '-')
+        data.update({
+            'hostname': hostname,
+            'port': self.port,
         })
         return data
 
@@ -288,8 +326,8 @@ class HadoopREST(Relation):
         """
         if not all_ready:
             return {}
-        namenode = any_ready_unit(NameNode.relation_name)
-        resourcemanager = any_ready_unit(ResourceManager.relation_name)
+        _, namenode = any_ready_unit(NameNode.relation_name)
+        _, resourcemanager = any_ready_unit(ResourceManager.relation_name)
         return {
             'namenode-host': namenode['private-address'],
             'hdfs-port': namenode['port'],
