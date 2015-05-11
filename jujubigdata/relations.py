@@ -146,11 +146,11 @@ class NameNode(SpecMatchingRelation, EtcHostsRelation):
     relation_name = 'namenode'
     required_keys = ['private-address', 'port', 'webhdfs-port', 'ready']
 
-    def __init__(self, spec=None, port=None, webhdfs_port=None):
+    def __init__(self, spec=None, port=None, webhdfs_port=None, *args, **kwargs):
         self.port = port  # only needed for provides
         self.webhdfs_port = webhdfs_port  # only needed for provides
         utils.initialize_kv_host()
-        super(NameNode, self).__init__(spec)
+        super(NameNode, self).__init__(spec, *args, **kwargs)
 
     def provide(self, remote_service, all_ready):
         data = super(NameNode, self).provide(remote_service, all_ready)
@@ -181,11 +181,11 @@ class ResourceManager(SpecMatchingRelation, EtcHostsRelation):
     relation_name = 'resourcemanager'
     required_keys = ['private-address', 'port', 'historyserver-port', 'ready']
 
-    def __init__(self, spec=None, port=None, historyserver_port=None):
+    def __init__(self, spec=None, port=None, historyserver_port=None, *args, **kwargs):
         self.port = port  # only needed for provides
         self.historyserver_port = historyserver_port  # only needed for provides
         utils.initialize_kv_host()
-        super(ResourceManager, self).__init__(spec)
+        super(ResourceManager, self).__init__(spec, *args, **kwargs)
 
     def provide(self, remote_service, all_ready):
         data = super(ResourceManager, self).provide(remote_service, all_ready)
@@ -446,9 +446,9 @@ class Hive(Relation):
     relation_name = 'hive'
     required_keys = ['private-address', 'port', 'ready']
 
-    def __init__(self, port=None):
+    def __init__(self, port=None, *args, **kwargs):
         self.port = port  # only needed for provides
-        super(Hive, self).__init__()
+        super(Hive, self).__init__(*args, **kwargs)
 
     def provide(self, remote_service, all_ready):
         data = super(Hive, self).provide(remote_service, all_ready)
