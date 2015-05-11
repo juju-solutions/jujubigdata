@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 import os
 
 
@@ -14,7 +14,7 @@ SETUP = {
     'author': "Ubuntu Developers",
     'author_email': "ubuntu-devel-discuss@lists.ubuntu.com",
     'url': "https://github.com/juju-solutions/jujubigdata",
-    'requires': [
+    'install_requires': [
         "six",
         "pyaml",
         "path.py>=7.0",

@@ -1,5 +1,6 @@
 jujubigdata/version.py
 dist/
+jujubigdata.egg-info/
 docs/_build
 .venv
 .venv3
