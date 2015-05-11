@@ -26,7 +26,7 @@ SETUP = {
     'scripts': [
     ],
     'license': "Apache License v2.0",
-    'long_description': open('README.md').read(),
+    'long_description': open('README.rst').read(),
     'description': 'Helpers for Juju Charm development for Big Data',
 }
 
