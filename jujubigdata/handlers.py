@@ -372,12 +372,13 @@ class YARN(object):
         # resourcemanager relation. If relating compute-slave to yarn-master,
         # we'll be called during the nodemanager relation.
         unit, data = helpers.any_ready_unit(relation)
-        return data['private-address'], data['port']
+        return data['private-address'], data['port'], data['historyserver-port']
 
     def _local(self):
         host = '0.0.0.0'
         port = self.hadoop_base.dist_config.port('resourcemanager')
-        return host, port
+        history_port = self.hadoop_base.dist_config.port('jobhistory')
+        return host, port, history_port
 
     def configure_resourcemanager(self):
         self.configure_yarn_base(*self._local())
@@ -404,7 +405,7 @@ class YARN(object):
     def configure_client(self):
         self.configure_yarn_base(*self._remote("resourcemanager"))
 
-    def configure_yarn_base(self, host, port):
+    def configure_yarn_base(self, host, port, history_port):
         dc = self.hadoop_base.dist_config
         yarn_site = dc.path('hadoop_conf') / 'yarn-site.xml'
         with utils.xmlpropmap_edit_in_place(yarn_site) as props:
@@ -415,7 +416,7 @@ class YARN(object):
                 'localhost' if host == '0.0.0.0' else host, dc.port('rm_log'))
         mapred_site = dc.path('hadoop_conf') / 'mapred-site.xml'
         with utils.xmlpropmap_edit_in_place(mapred_site) as props:
-            props["mapreduce.jobhistory.address"] = "{}:{}".format(host, dc.port('jobhistory'))
+            props["mapreduce.jobhistory.address"] = "{}:{}".format(host, history_port)
             props["mapreduce.framework.name"] = 'yarn'
 
     def install_demo(self):

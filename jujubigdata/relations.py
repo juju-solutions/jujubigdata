@@ -17,7 +17,7 @@ from path import Path
 
 from charmhelpers.core import host
 from charmhelpers.core import hookenv
-from charmhelpers.core.charmframework.helpers import Relation
+from charmhelpers.core.charmframework.helpers import Relation, any_ready_unit
 
 from jujubigdata import utils
 
@@ -107,10 +107,11 @@ class NameNode(SpecMatchingRelation):
     This is the relation that clients should use.
     """
     relation_name = 'namenode'
-    required_keys = ['private-address', 'port', 'ready']
+    required_keys = ['private-address', 'port', 'webhdfs-port', 'ready']
 
-    def __init__(self, spec=None, port=None):
-        self.port = port  # only needed for provides
+    def __init__(self, spec=None, hdfs_port=None, webhdfs_port=None):
+        self.hdfs_port = hdfs_port  # only needed for provides
+        self.webhdfs_port = webhdfs_port  # only needed for provides
         super(NameNode, self).__init__(spec)
 
     def provide(self, remote_service, all_ready):
@@ -119,7 +120,8 @@ class NameNode(SpecMatchingRelation):
             utils.wait_for_hdfs(400)  # will error on timeout
             data.update({
                 'ready': 'true',
-                'port': self.port,
+                'port': self.hdfs_port,
+                'webhdfs_port': self.webhdfs_port,
             })
         return data
 
@@ -131,10 +133,11 @@ class ResourceManager(SpecMatchingRelation):
     This is the relation that clients should use.
     """
     relation_name = 'resourcemanager'
-    required_keys = ['private-address', 'port', 'ready']
+    required_keys = ['private-address', 'port', 'historyserver-port', 'ready']
 
-    def __init__(self, spec=None, port=None):
+    def __init__(self, spec=None, port=None, historyserver_port=None):
         self.port = port  # only needed for provides
+        self.historyserver_port = historyserver_port  # only needed for provides
         super(ResourceManager, self).__init__(spec)
 
     def provide(self, remote_service, all_ready):
@@ -143,6 +146,7 @@ class ResourceManager(SpecMatchingRelation):
             data.update({
                 'ready': 'true',
                 'port': self.port,
+                'historyserver-port': self.historyserver_port,
             })
         return data
 
@@ -227,20 +231,164 @@ class ResourceManagerMaster(ResourceManager):
 
 
 class HadoopPlugin(Relation):
+    """
+    This helper class manages the ``hadoop-plugin`` interface, and
+    is the recommended way of interacting with the endpoint via this
+    interface.
+
+    Charms using this interface will have a JRE installed, the Hadoop
+    API Java libraries installed, the Hadoop configuration managed in
+    ``/etc/hadoop/conf``, and the environment configured in ``/etc/environment``.
+    The endpoint will ensure that the distribution, version, Java, etc. are all
+    compatible to ensure a properly functioning Hadoop ecosystem.
+
+    Charms using this interface should call :meth:`hdfs_is_ready` to
+    determine if this relation is ready to use.
+    """
     relation_name = 'hadoop-plugin'
-    required_keys = ['private-address', 'hdfs-ready']
+    required_keys = ['hdfs-ready']
+    '''
+    This key will be set on the relation once everything is installed,
+    configured, connected, and ready to receive work.  This key can be
+    checked by calling :meth:`hdfs_is_ready`, or manually via Juju's
+    ``relation-get``.
+    '''
 
     def __init__(self, *args, **kwargs):
         super(HadoopPlugin, self).__init__(*args, **kwargs)
 
     def provide(self, remote_service, all_ready):
+        """
+        Used by the endpoint to provide the :attr:`required_keys`.
+        """
         if not all_ready:
             return {}
         utils.wait_for_hdfs(400)  # will error if timeout
         return {'hdfs-ready': True}
 
     def hdfs_is_ready(self):
+        """
+        Check if the Hadoop libraries and installed and configured and HDFS is
+        connected and ready to handle work (at least one DataNode available).
+
+        (This is a synonym for ``self.is_ready()``.)
+        """
         return self.is_ready()
+
+
+class HadoopREST(Relation):
+    """
+    This helper class manages the ``hadoop-rest`` interface, and
+    is the recommended way of interacting with the endpoint via this
+    interface.
+
+    Charms using this interface are provided with the API endpoint
+    information for the NameNode, ResourceManager, and JobHistoryServer.
+    """
+    relation_name = 'hadoop-rest'
+    required_keys = ['namenode-host', 'hdfs-port', 'webhdfs-port',
+                     'resourcemanager-host', 'resourcemanager-port',
+                     'historyserver-host', 'historyserver-port']
+
+    def provide(self, remote_service, all_ready):
+        """
+        Used by the endpoint to provide the :attr:`required_keys`.
+        """
+        if not all_ready:
+            return {}
+        namenode = any_ready_unit(NameNode.relation_name)
+        resourcemanager = any_ready_unit(ResourceManager.relation_name)
+        return {
+            'namenode-host': namenode['private-address'],
+            'hdfs-port': namenode['port'],
+            'webhdfs-port': namenode['webhdfs-port'],
+            'resourcemanager-host': resourcemanager['private-address'],
+            'resourcemanager-port': resourcemanager['port'],
+            'historyserver-host': resourcemanager['private-address'],
+            'historyserver-port': resourcemanager['historyserver-port'],
+        }
+
+    def _get(self, *keys):
+        if not self.is_ready():
+            return None
+        data = self.filtered_data().values()[0]
+        if not keys:
+            return None
+        elif len(keys) == 1:
+            return data[keys[0]]
+        else:
+            return [data[key] for key in keys]
+
+    @property
+    def namenode_host(self):
+        'Property containing the NameNode host, or ``None`` if not available.'
+        return self._get('namenode-host')
+
+    @property
+    def hdfs_port(self):
+        'Property containing the HDFS port, or ``None`` if not available.'
+        return self._get('hdfs-port')
+
+    @property
+    def webhdfs_port(self):
+        'Property containing the WebHDFS port, or ``None`` if not available.'
+        return self._get('webhdfs-port')
+
+    @property
+    def resourcemanager_host(self):
+        'Property containing the ResourceManager host, or ``None`` if not available.'
+        return self._get('resourcemanager-host')
+
+    @property
+    def resourcemanager_port(self):
+        'Property containing the ResourceManager port, or ``None`` if not available.'
+        return self._get('resourcemanager-port')
+
+    @property
+    def historyserver_host(self):
+        'Property containing the HistoryServer host, or ``None`` if not available.'
+        return self._get('historyserver-host')
+
+    @property
+    def historyserver_port(self):
+        'Property containing the HistoryServer port, or ``None`` if not available.'
+        return self._get('historyserver-port')
+
+    @property
+    def hdfs_uri(self):
+        'Property containing the full HDFS URI, or ``None`` if not available.'
+        host, port = self._get('namenode-host', 'hdfs-port')
+        if host and port:
+            return 'hdfs://{}:{}'.format(host, port)
+        else:
+            return None
+
+    @property
+    def webhdfs_uri(self):
+        'Property containing the full WebHDFS URI, or ``None`` if not available.'
+        host, port = self._get('namenode-host', 'webhdfs-port')
+        if host and port:
+            return 'http://{}:{}/webhdfs/v1'.format(host, port)
+        else:
+            return None
+
+    @property
+    def resourcemanager_uri(self):
+        'Property containing the full ResourceManager API URI, or ``None`` if not available.'
+        host, port = self._get('resourcemanager-host', 'resourcemanager-port')
+        if host and port:
+            return 'http://{}:{}'.format(host, port)
+        else:
+            return None
+
+    @property
+    def historyserver_uri(self):
+        'Property containing the full JobHistoryServer API URI, or ``None`` if not available.'
+        host, port = self._get('historyserver-host', 'historyserver-port')
+        if host and port:
+            return 'http://{}:{}'.format(host, port)
+        else:
+            return None
 
 
 class MySQL(Relation):

@@ -3,20 +3,20 @@
 JujuBigData Documentation
 =========================
 
-The ``jujubigdata`` Python library is an extensive collection of functions and
+The ``jujubigdata`` Python library is an collection of functions and
 classes for simplifying the development of `Juju Charms`_ for Big Data
 applications. It includes utilities for:
 
 * Interacting with Apache Hadoop
-* Connecting to the core Apache Hadoop platform bundle
+* Connecting to the core Apache Hadoop `platform bundle`_
 * Reading and writing configuration in various formats
 * Managing distribution-specific configuration in a generalized, maintainable fashion
 
 .. toctree::
-   :maxdepth: 2
+    :maxdepth: 2
 
-   core-bundle
-   api/jujubigdata
+    platform-bundle
+    api/jujubigdata
 
 Indices and tables
 ==================
@@ -26,3 +26,4 @@ Indices and tables
 
 
 .. _Juju Charms: https://juju.ubuntu.com/docs/
+.. _platform bundle: https://jujucharms.com/u/bigdata-dev/apache-core-batch-processing/

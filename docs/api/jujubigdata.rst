@@ -1,5 +1,5 @@
-charmhelpers.contrib.bigdata package
-====================================
+API Documentation
+=================
 
 .. toctree::
 
