@@ -33,7 +33,7 @@ relations on the `apache-hadoop-plugin`_ endpoint charm:
   with Hadoop only via the REST API, such as Hue.  Charms using this interface
   are provided with the REST API endpoint information for both the NameNode and
   the ResourceManager.  The details of the protocol used by this interface are
-  documented in the :class:`helper class<jujubigdata.relations.HadoopREST`,
+  documented in the :class:`helper class <jujubigdata.relations.HadoopREST>`,
   which is the recommended way to use this interface.
 
 * **hadoop-plugin**: This interface is intended for components that interact
@@ -44,7 +44,7 @@ relations on the `apache-hadoop-plugin`_ endpoint charm:
   The endpoint will ensure that the distribution, version, Java, etc. are all
   compatible to ensure a properly functioning Hadoop ecosystem.  The details of
   the protocol used by this interface are documented in the
-  :class:`helper class<jujubigdata.relations.HadoopPlugin>`,
+  :class:`helper class <jujubigdata.relations.HadoopPlugin>`,
   which is the recommended way to use this interface.
 
 
