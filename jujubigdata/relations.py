@@ -227,7 +227,7 @@ class SecondaryNameNode(SpecMatchingRelation):
     """
     Relation which communicates SecondaryNameNode info back to NameNodes.
     """
-    relation_name = 'datanode'
+    relation_name = 'secondary'
     required_keys = ['private-address', 'hostname', 'port']
 
     def __init__(self, spec=None, port=None):
