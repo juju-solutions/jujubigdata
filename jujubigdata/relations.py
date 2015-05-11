@@ -230,9 +230,9 @@ class SecondaryNameNode(SpecMatchingRelation):
     relation_name = 'secondary'
     required_keys = ['private-address', 'hostname', 'port']
 
-    def __init__(self, spec=None, port=None):
+    def __init__(self, spec=None, port=None, *args, **kwargs):
         self.port = port  # only needed for provides
-        super(SecondaryNameNode, self).__init__(spec)
+        super(SecondaryNameNode, self).__init__(spec, *args, **kwargs)
 
     def provide(self, remote_service, all_ready):
         data = super(SecondaryNameNode, self).provide(remote_service, all_ready)
