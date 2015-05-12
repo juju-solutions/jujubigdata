@@ -132,7 +132,7 @@ class EtcHostsRelation(Relation):
 
     def register_host_ips(self):
         for unit, data in self.unfiltered_data().items():
-            utils.update_kv_host(data['private-address'], data.get('hostname', ''))
+            utils.update_kv_host(data['private-address'], unit.replace('/', '-'))
 
     def update_etc_hosts(self):
         unit, data = any_ready_unit(self.relation_name)
