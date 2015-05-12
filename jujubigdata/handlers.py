@@ -296,7 +296,7 @@ class HDFS(object):
         namenode image and edits log files, joins them into new image and
         uploads the new image back to the (primary and the only) namenode.
         """
-        self.configure_hdfs_base(*self._remote("namenode"))
+        self.configure_hdfs_base(*self._remote("secondary"))
 
     def configure_datanode(self):
             self.configure_hdfs_base(*self._remote("datanode"))
