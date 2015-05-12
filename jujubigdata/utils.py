@@ -10,7 +10,6 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # Apache License for more details.
 
-import ast
 import re
 import time
 import yaml
@@ -20,7 +19,6 @@ from xml.etree import ElementTree as ET
 from xml.dom import minidom
 from distutils.util import strtobool
 from path import Path
-from json import dumps
 
 from charmhelpers.core import unitdata
 from charmhelpers.core import hookenv
@@ -357,7 +355,7 @@ def initialize_kv_host():
 
 
 def get_kv_hosts():
-    return unitdata.kv().getrange('etc_host')
+    return unitdata.kv().getrange('etc_host.', strip=True)
 
 
 def update_kv_host(ip, host):
@@ -365,8 +363,7 @@ def update_kv_host(ip, host):
 
     # store attrs in the kv as 'etc_host.<ip>'; kv.update will insert
     # a new record or update any existing key with current data.
-    unit_kv.update({ip: {'private-address': ip,
-                         'hostname': host}},
+    unit_kv.update({ip: host},
                    prefix="etc_host.")
     unit_kv.flush(True)
 
