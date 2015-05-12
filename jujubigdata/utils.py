@@ -319,31 +319,34 @@ def run_as(user, command, *args, **kwargs):
     return run(['su', user, '-c', quoted], env=env)
 
 
-def update_etc_hosts(hosts):
+def manage_etc_hosts(ips_to_names):
     '''
-    Update /etc/hosts on the unit
+    Update /etc/hosts given a mapping of managed IP / hostname pairs.
 
-    :param str hosts: json string of host dictionaries
+    Note that this mapping should be complete; that is, it should contain all
+    of the IP / hostname pairs that you wish to manage, and subsquent calls
+    will replace any previously managed entries with the new ones.  Unmanaged
+    entries will left intact.
+
+    :param dict ips_to_names: mapping of IPs to hostnames (must be one-to-one)
     '''
     etc_hosts = Path('/etc/hosts')
     hosts_contents = etc_hosts.lines()
+    IP_pat = re.compile(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')
 
-    for key, data in ast.literal_eval(hosts).items():
-        line = '%s %s' % (data['private-address'], data['hostname'])
-        IP_pat = r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
-        if not re.match(IP_pat, data['private-address']):
-            line = '# %s  # INVALID IP' % line
-        for l, hosts_line in enumerate(hosts_contents):
-            if re.match(r'(# )?%s\s' % data['private-address'], hosts_line):
-                # update existing host
-                hosts_contents[l] = line
-                break
-        else:
-            # add new host
-            hosts_contents.append(line)
+    # remove any managed lines and pass-thru any non-managed lines w/o change
+    new_lines = [l for l in hosts_contents if '# JUJU MANAGED' not in l]
 
-        # write new /etc/hosts
-        etc_hosts.write_lines(hosts_contents, append=False)
+    # now add in all of our managed lines
+    for ip, name in ips_to_names.items():
+        line = '%s %s  # JUJU MANAGED' % (ip, name)
+        if not IP_pat.match(ip):
+            line = '# %s (INVALID IP)' % line
+        # add new host
+        new_lines.append(line)
+
+    # write new /etc/hosts
+    etc_hosts.write_lines(new_lines, append=False)
 
 
 def initialize_kv_host():
@@ -354,13 +357,7 @@ def initialize_kv_host():
 
 
 def get_kv_hosts():
-    unit_kv = unitdata.kv()
-    # all our hosts in the kv are prefixed with 'etc_host.'; they'll come
-    # out of the kv as a unicode object, but convert them to a json string
-    # for ease of use later -- this string of hosts is what we set on
-    # various relations so units can update their local /etc/hosts file.
-    kv_hosts = dumps(unit_kv.getrange('etc_host'))
-    return kv_hosts
+    return unitdata.kv().getrange('etc_host')
 
 
 def update_kv_host(ip, host):
