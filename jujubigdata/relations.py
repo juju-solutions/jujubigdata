@@ -134,11 +134,11 @@ class EtcHostsRelation(Relation):
         for unit, data in self.unfiltered_data().items():
             utils.update_kv_host(data['private-address'], data.get('hostname', ''))
 
-    def manage_etc_hosts(self):
+    def update_etc_hosts(self):
         unit, data = any_ready_unit(self.relation_name)
         master_hosts = json.loads(data['etc_hosts'])
         hookenv.log('Updating /etc/hosts from %s: %s' % (unit, master_hosts))
-        utils.manage_etc_hosts(master_hosts)
+        utils.update_etc_hosts(master_hosts)
 
 
 class NameNode(SpecMatchingRelation, EtcHostsRelation):

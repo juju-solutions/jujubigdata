@@ -317,26 +317,35 @@ def run_as(user, command, *args, **kwargs):
     return run(['su', user, '-c', quoted], env=env)
 
 
-def manage_etc_hosts(ips_to_names):
+def update_etc_hosts(ips_to_names):
     '''
     Update /etc/hosts given a mapping of managed IP / hostname pairs.
-
-    Note that this mapping should be complete; that is, it should contain all
-    of the IP / hostname pairs that you wish to manage, and subsquent calls
-    will replace any previously managed entries with the new ones.  Unmanaged
-    entries will left intact.
 
     :param dict ips_to_names: mapping of IPs to hostnames (must be one-to-one)
     '''
     etc_hosts = Path('/etc/hosts')
     hosts_contents = etc_hosts.lines()
+    comment_pat = re.compile(r'^\s*#?\s*([^#]*)\s*#.*$')
     IP_pat = re.compile(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')
 
-    # remove any managed lines and pass-thru any non-managed lines w/o change
-    new_lines = [l for l in hosts_contents if '# JUJU MANAGED' not in l]
+    new_lines = []
+    managed = {}
+    for line in hosts_contents:
+        if '# JUJU MANAGED' not in line:
+            # pass-thru unmanaged lines unchanged
+            new_lines.append(line)
+        else:
+            # record existing managed entries
+            # managed is inverted (name-to-ip) because, while it's ok to have
+            # multiple hosts resolve to the same IP, having multiple IPs for
+            # the same host can be problematic
+            ip, name = comment_pat.sub(r'\1', line).split(None, 2)
+            managed[name] = ip
+    # add or update new hosts
+    managed.update({name: ip for ip, name in ips_to_names.items()})
 
-    # now add in all of our managed lines
-    for ip, name in ips_to_names.items():
+    # render all of our managed entries as lines
+    for name, ip in managed.items():
         line = '%s %s  # JUJU MANAGED' % (ip, name)
         if not IP_pat.match(ip):
             line = '# %s (INVALID IP)' % line
@@ -345,6 +354,17 @@ def manage_etc_hosts(ips_to_names):
 
     # write new /etc/hosts
     etc_hosts.write_lines(new_lines, append=False)
+
+
+def update_etc_hosts_from_kv():
+    """
+    Manage the /etc/hosts file from the host entries stored in unitdata.kv()
+    by the various relations.
+    """
+    kv_hosts = get_kv_hosts()
+    hookenv.log('Updating hdfs-master /etc/hosts with %s' %
+                kv_hosts, hookenv.DEBUG)
+    update_etc_hosts(kv_hosts)
 
 
 def initialize_kv_host():
