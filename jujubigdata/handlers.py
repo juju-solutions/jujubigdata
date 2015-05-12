@@ -253,6 +253,8 @@ class HDFS(object):
         :param str relation: Name of the relation, e.g. "datanode" or "namenode"
         """
         unit, data = helpers.any_ready_unit(relation)
+        if not unit:
+            return None, None
         host = unit.replace('/', '-')
         return host, data['port']
 
@@ -312,7 +314,8 @@ class HDFS(object):
         dc = self.hadoop_base.dist_config
         core_site = dc.path('hadoop_conf') / 'core-site.xml'
         with utils.xmlpropmap_edit_in_place(core_site) as props:
-            props['fs.defaultFS'] = "hdfs://{host}:{port}".format(host=host, port=port)
+            if host and port:
+                props['fs.defaultFS'] = "hdfs://{host}:{port}".format(host=host, port=port)
             props['hadoop.proxyuser.hue.hosts'] = "*"
             props['hadoop.proxyuser.hue.groups'] = "*"
             props['hadoop.proxyuser.oozie.groups'] = '*'
@@ -402,6 +405,8 @@ class YARN(object):
         :param str relation: Name of the relation, e.g. "resourcemanager" or "nodemanager"
         """
         unit, data = helpers.any_ready_unit(relation)
+        if not unit:
+            return None, None
         host = unit.replace('/', '-')
         return host, data['port'], data['historyserver-port']
 
@@ -445,12 +450,14 @@ class YARN(object):
         yarn_site = dc.path('hadoop_conf') / 'yarn-site.xml'
         with utils.xmlpropmap_edit_in_place(yarn_site) as props:
             props['yarn.nodemanager.aux-services'] = 'mapreduce_shuffle'
-            props['yarn.resourcemanager.hostname'] = '{}'.format(host)
-            props['yarn.resourcemanager.address'] = '{}:{}'.format(host, port)
-            props["yarn.log.server.url"] = "{}:{}/jobhistory/logs/".format(host, dc.port('rm_log'))
+            if host:
+                props['yarn.resourcemanager.hostname'] = '{}'.format(host)
+                props['yarn.resourcemanager.address'] = '{}:{}'.format(host, port)
+                props["yarn.log.server.url"] = "{}:{}/jobhistory/logs/".format(host, dc.port('rm_log'))
         mapred_site = dc.path('hadoop_conf') / 'mapred-site.xml'
         with utils.xmlpropmap_edit_in_place(mapred_site) as props:
-            props["mapreduce.jobhistory.address"] = "{}:{}".format(host, history_port)
+            if host and history_port:
+                props["mapreduce.jobhistory.address"] = "{}:{}".format(host, history_port)
             props["mapreduce.framework.name"] = 'yarn'
 
     def install_demo(self):
