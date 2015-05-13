@@ -162,7 +162,7 @@ class NameNode(SpecMatchingRelation, EtcHostsRelation):
             data.update({
                 'ready': 'true',
                 'port': self.port,
-                'webhdfs_port': self.webhdfs_port,
+                'webhdfs-port': self.webhdfs_port,
             })
         return data
 
