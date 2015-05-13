@@ -102,7 +102,7 @@ class SSHRelation(Relation):
     def __init__(self, *args, **kwargs):
         super(SSHRelation, self).__init__(*args, **kwargs)
         if 'ssh-key' not in self.required_keys:
-            self.required_keys.append('ssh-key')
+            self.required_keys = self.required_keys + ['ssh-key']
 
     def install_ssh_keys(self):
         unit, data = any_ready_unit(self.relation_name)
@@ -121,7 +121,7 @@ class EtcHostsRelation(Relation):
     def __init__(self, *args, **kwargs):
         super(EtcHostsRelation, self).__init__(*args, **kwargs)
         if 'etc_hosts' not in self.required_keys:
-            self.required_keys.append('etc_hosts')
+            self.required_keys = self.required_keys + ['etc_hosts']
 
     def provide(self, remote_service, all_ready):
         data = super(EtcHostsRelation, self).provide(remote_service, all_ready)
@@ -172,7 +172,6 @@ class NameNodeMaster(NameNode, SSHRelation):
     Alternate NameNode relation for DataNodes.
     """
     relation_name = 'datanode'
-    required_keys = ['private-address', 'port', 'ready']
     ssh_user = 'hdfs'
 
 
@@ -207,7 +206,6 @@ class ResourceManagerMaster(ResourceManager, SSHRelation):
     Alternate ResourceManager relation for NodeManagers.
     """
     relation_name = 'nodemanager'
-    required_keys = ['private-address', 'port', 'ready']
     ssh_user = 'yarn'
 
 
