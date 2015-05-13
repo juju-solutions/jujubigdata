@@ -107,7 +107,7 @@ class SSHRelation(Relation):
     def install_ssh_keys(self):
         unit, data = any_ready_unit(self.relation_name)
         ssh_key = data['ssh-key']
-        utils.install_ssh_key('yarn', ssh_key)
+        utils.install_ssh_key(self.ssh_user, ssh_key)
 
     def provide(self, remote_service, all_ready):
         data = super(SSHRelation, self).provide(remote_service, all_ready)
