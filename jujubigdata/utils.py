@@ -429,6 +429,17 @@ def wait_for_hdfs(timeout):
     raise TimeoutError('Timed-out waiting for HDFS:\n%s' % output)
 
 
+def wait_for_jps(process_name, timeout):
+    hookenv.log('Waiting for jps to see %s' % process_name, hookenv.DEBUG)
+    start = time.time()
+    while time.time() - start < timeout:
+        if jps(process_name):
+            hookenv.log('Jps shows %s is running' % process_name, hookenv.DEBUG)
+            return True
+        time.sleep(2)
+    raise TimeoutError('Timed-out waiting for jps process:\n%s' % process_name)
+
+
 class verify_resources(object):
     """
     Predicate for specific named resources, with useful rendering in the logs.

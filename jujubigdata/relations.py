@@ -148,7 +148,7 @@ class NameNode(SpecMatchingRelation, EtcHostsRelation):
     This is the relation that clients should use.
     """
     relation_name = 'namenode'
-    required_keys = ['private-address', 'port', 'webhdfs-port', 'ready']
+    required_keys = ['private-address', 'has_slave', 'port', 'webhdfs-port']
 
     def __init__(self, spec=None, port=None, webhdfs_port=None, *args, **kwargs):
         self.port = port  # only needed for provides
@@ -158,13 +158,23 @@ class NameNode(SpecMatchingRelation, EtcHostsRelation):
 
     def provide(self, remote_service, all_ready):
         data = super(NameNode, self).provide(remote_service, all_ready)
-        if all_ready and DataNode().is_ready():
+        if all_ready and utils.wait_for_jps('NameNode', 300):
             data.update({
-                'ready': 'true',
+                'has_slave': DataNode().is_ready(),
                 'port': self.port,
                 'webhdfs-port': self.webhdfs_port,
             })
         return data
+
+    def has_slave(self):
+        """
+        Check if the NameNode has any DataNode slaves registered. This reflects
+        if HDFS is ready without having to wait for utils.wait_for_hdfs.
+        """
+        if not self.is_ready():
+            return False
+        data = self.filtered_data().values()[0]
+        return data['has_slave']
 
 
 class NameNodeMaster(NameNode, SSHRelation):
@@ -182,7 +192,7 @@ class ResourceManager(SpecMatchingRelation, EtcHostsRelation):
     This is the relation that clients should use.
     """
     relation_name = 'resourcemanager'
-    required_keys = ['private-address', 'port', 'historyserver-port', 'ready']
+    required_keys = ['private-address', 'has_slave', 'historyserver-port', 'port']
 
     def __init__(self, spec=None, port=None, historyserver_port=None, *args, **kwargs):
         self.port = port  # only needed for provides
@@ -192,9 +202,9 @@ class ResourceManager(SpecMatchingRelation, EtcHostsRelation):
 
     def provide(self, remote_service, all_ready):
         data = super(ResourceManager, self).provide(remote_service, all_ready)
-        if all_ready:
+        if all_ready and utils.wait_for_jps('ResourceManager', 300):
             data.update({
-                'ready': 'true',
+                'has_slave': NodeManager().is_ready(),
                 'port': self.port,
                 'historyserver-port': self.historyserver_port,
             })
@@ -295,7 +305,8 @@ class HadoopPlugin(Relation):
         """
         if not all_ready:
             return {}
-        utils.wait_for_hdfs(400)  # will error if timeout
+        if not NameNode().has_slave():
+            utils.wait_for_hdfs(300)  # will error if timeout
         return {'hdfs-ready': True}
 
     def hdfs_is_ready(self):
