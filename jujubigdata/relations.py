@@ -140,6 +140,13 @@ class EtcHostsRelation(Relation):
         hookenv.log('Updating /etc/hosts from %s: %s' % (unit, master_hosts))
         utils.update_etc_hosts(master_hosts)
 
+    def am_i_registered(self):
+        my_ip = hookenv.unit_get('private-address')
+        my_hostname = hookenv.local_unit().replace('/', '-')
+        unit, data = any_ready_unit(self.relation_name)
+        etc_hosts = data.get('etc_hosts', {})
+        return etc_hosts.get(my_ip, None) == my_hostname
+
 
 class NameNode(SpecMatchingRelation, EtcHostsRelation):
     """
