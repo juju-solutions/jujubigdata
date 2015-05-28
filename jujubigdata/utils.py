@@ -362,7 +362,7 @@ def update_etc_hosts_from_kv():
     by the various relations.
     """
     kv_hosts = get_kv_hosts()
-    hookenv.log('Updating hdfs-master /etc/hosts with %s' %
+    hookenv.log('Updating master /etc/hosts from kv with %s' %
                 kv_hosts, hookenv.DEBUG)
     update_etc_hosts(kv_hosts)
 
