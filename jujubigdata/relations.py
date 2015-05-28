@@ -144,7 +144,7 @@ class EtcHostsRelation(Relation):
         my_ip = hookenv.unit_get('private-address')
         my_hostname = hookenv.local_unit().replace('/', '-')
         unit, data = any_ready_unit(self.relation_name)
-        etc_hosts = (data or {}).get('etc_hosts', {})
+        etc_hosts = json.loads((data or {}).get('etc_hosts', '{}'))
         return etc_hosts.get(my_ip, None) == my_hostname
 
 

@@ -35,16 +35,15 @@ userinstall:
 	scripts/update-rev
 	python setup.py install --user
 
-.PHONY: apt_prereqs
-apt_prereqs:
+.venv:
 	@echo Processing apt package prereqs
 	@for i in $(APT_PREREQS); do dpkg -l | grep -w $$i >/dev/null || sudo apt-get install -y $$i; done
-
-.venv: apt_prereqs
 	virtualenv .venv
 	.venv/bin/pip install -IUr test_requirements.txt
 
-.venv3: apt_prereqs
+.venv3:
+	@echo Processing apt package prereqs
+	@for i in $(APT_PREREQS); do dpkg -l | grep -w $$i >/dev/null || sudo apt-get install -y $$i; done
 	virtualenv .venv3 --python=python3
 	.venv3/bin/pip install -IUr test_requirements.txt
 
