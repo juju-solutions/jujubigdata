@@ -94,6 +94,9 @@ class HadoopBase(object):
         utils.update_etc_hosts({local_ip: hostname})
 
         # update name of host to more semantically meaningful value
+        # (this is required on some providers; the /etc/hosts entry must match
+        # the /etc/hostname lest Hadoop get confused about where certain things
+        # should be run)
         etc_hostname = Path('/etc/hostname')
         etc_hostname.write_text(hostname)
         check_call(['hostname', '-F', etc_hostname])
