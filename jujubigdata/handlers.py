@@ -10,7 +10,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # Apache License for more details.
 
-from subprocess import check_output
+from subprocess import check_call, check_output
 import time
 
 from path import Path
@@ -92,6 +92,11 @@ class HadoopBase(object):
         local_ip = utils.resolve_private_address(hookenv.unit_get('private-address'))
         hostname = hookenv.local_unit().replace('/', '-')
         utils.update_etc_hosts({local_ip: hostname})
+
+        # update name of host to more semantically meaningful value
+        etc_hostname = Path('/etc/hostname')
+        etc_hostname.write_text(hostname)
+        check_call(['hostname', '-F', etc_hostname])
 
     def install_base_packages(self):
         with utils.disable_firewall():
