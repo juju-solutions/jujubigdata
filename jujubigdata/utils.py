@@ -13,6 +13,7 @@
 import re
 import time
 import yaml
+import socket
 from contextlib import contextmanager
 from subprocess import check_call, check_output, CalledProcessError
 from xml.etree import ElementTree as ET
@@ -365,6 +366,23 @@ def update_etc_hosts_from_kv():
     hookenv.log('Updating master /etc/hosts from kv with %s' %
                 kv_hosts, hookenv.DEBUG)
     update_etc_hosts(kv_hosts)
+
+
+def resolve_private_address(addr):
+    IP_pat = re.compile(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')
+    contains_IP_pat = re.compile(r'\d{1,3}[-.]\d{1,3}[-.]\d{1,3}[-.]\d{1,3}')
+    if IP_pat.match(addr):
+        return addr  # already IP
+    try:
+        ip = socket.gethostbyname(addr)
+        return ip
+    except socket.error as e:
+        hookenv.log('Unable to resolve private IP: %s (will attempt to guess)' % addr, hookenv.ERROR)
+        hookenv.log('%s' % e, hookenv.ERROR)
+        contained = contains_IP_pat.search(addr)
+        if not contained:
+            raise ValueError('Unable to resolve or guess IP from private-address: %s' % addr)
+        return contained.groups(0).replace('-', '.')
 
 
 def initialize_kv_host():

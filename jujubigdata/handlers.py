@@ -10,8 +10,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # Apache License for more details.
 
-import re
-from subprocess import check_call, check_output
+from subprocess import check_output
 import time
 
 from path import Path
@@ -90,22 +89,9 @@ class HadoopBase(object):
         can resolve the hostname of the server to its real IP address.
         We derive our hostname from the unit_id, replacing / with -.
         """
-        private_address = hookenv.unit_get('private-address')
+        local_ip = utils.resolve_private_address(hookenv.unit_get('private-address'))
         hostname = hookenv.local_unit().replace('/', '-')
-
-        etc_hostname = Path('/etc/hostname')
-        etc_hostname.write_text(hostname)
-        check_call(["hostname", "-F", "/etc/hostname"])
-
-        etc_hosts = Path('/etc/hosts')
-        hosts = etc_hosts.lines()
-        line = '%s %s' % (private_address, hostname)
-        IP_pat = r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
-        if not re.match(IP_pat, private_address):
-            line = '# %s  # private-address did not return an IP' % line
-        if hosts[0] != line:
-            hosts.insert(0, line)
-            etc_hosts.write_lines(hosts)
+        utils.update_etc_hosts({local_ip: hostname})
 
     def install_base_packages(self):
         with utils.disable_firewall():
@@ -278,7 +264,7 @@ class HDFS(object):
             props['dfs.namenode.datanode.registration.ip-hostname-check'] = 'true'
             props['dfs.namenode.http-address'] = '0.0.0.0:{}'.format(dc.port('nn_webapp_http'))
             # TODO: support SSL
-            #props['dfs.namenode.https-address'] = '0.0.0.0:{}'.format(dc.port('nn_webapp_https'))
+            # props['dfs.namenode.https-address'] = '0.0.0.0:{}'.format(dc.port('nn_webapp_https'))
             unit, secondary = helpers.any_ready_unit('secondary')
             if secondary:
                 props['dfs.secondary.http.address'] = '{host}:{port}'.format(
@@ -305,7 +291,7 @@ class HDFS(object):
             with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
                 props['dfs.datanode.http.address'] = '0.0.0.0:{}'.format(dc.port('dn_webapp_http'))
                 # TODO: support SSL
-                #props['dfs.datanode.https.address'] = '0.0.0.0:{}'.format(dc.port('dn_webapp_https'))
+                # props['dfs.datanode.https.address'] = '0.0.0.0:{}'.format(dc.port('dn_webapp_https'))
 
     def configure_client(self):
         self.configure_hdfs_base(*self._remote("namenode"))
@@ -428,7 +414,7 @@ class YARN(object):
             # 0.0.0.0 will listen on all interfaces, which is what we want on the server
             props['yarn.resourcemanager.webapp.address'] = '0.0.0.0:{}'.format(dc.port('rm_webapp_http'))
             # TODO: support SSL
-            #props['yarn.resourcemanager.webapp.https.address'] = '0.0.0.0:{}'.format(dc.port('rm_webapp_https'))
+            # props['yarn.resourcemanager.webapp.https.address'] = '0.0.0.0:{}'.format(dc.port('rm_webapp_https'))
 
     def configure_jobhistory(self):
         self.configure_yarn_base(*self._local())
