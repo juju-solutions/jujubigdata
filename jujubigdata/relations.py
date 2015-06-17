@@ -130,17 +130,18 @@ class EtcHostsRelation(Relation):
         })
         return data
 
-    def register_host_ips(self):
+    def register_connected_hosts(self):
         for unit, data in self.unfiltered_data().items():
             ip = utils.resolve_private_address(data['private-address'])
             name = unit.replace('/', '-')
             utils.update_kv_host(ip, name)
 
-    def update_etc_hosts(self):
+    def register_provided_hosts(self):
         unit, data = any_ready_unit(self.relation_name)
-        master_hosts = json.loads(data['etc_hosts'])
-        hookenv.log('Updating /etc/hosts from %s: %s' % (unit, master_hosts))
-        utils.update_etc_hosts(master_hosts)
+        provided_hosts = json.loads(data['etc_hosts'])
+        hookenv.log('Registering hosts from %s: %s' % (unit, provided_hosts))
+        for ip, name in provided_hosts:
+            utils.update_kv_host(ip, name)
 
     def am_i_registered(self):
         my_ip = utils.resolve_private_address(hookenv.unit_get('private-address'))

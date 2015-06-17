@@ -357,7 +357,7 @@ def update_etc_hosts(ips_to_names):
     etc_hosts.write_lines(new_lines, append=False)
 
 
-def update_etc_hosts_from_kv():
+def manage_etc_hosts():
     """
     Manage the /etc/hosts file from the host entries stored in unitdata.kv()
     by the various relations.
