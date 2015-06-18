@@ -456,14 +456,14 @@ class FlumeAgent(Relation):
 
     def provide(self, remote_service, all_ready):
         data = super(FlumeAgent, self).provide(remote_service, all_ready)
-        flume_protocol = hookenv.config('protocol')
+        flume_protocol = hookenv.config('sink_protocol')
         if (flume_protocol not in ['avro']):
             hookenv.log('Invalid flume protocol {}'.format(flume_protocol), hookenv.ERROR)
             return data
         if all_ready:
             data.update({
                 'port': self.port,
-                'protocol': hookenv.config('protocol'),
+                'protocol': hookenv.config('sink_protocol'),
             })
         return data
 
