@@ -73,6 +73,7 @@ class HadoopBase(object):
     def install(self, force=False):
         if not force and self.is_installed():
             return
+        hookenv.status_set('maintenance', 'Installing Apache Hadoop base')
         self.configure_hosts_file()
         self.dist_config.add_users()
         self.dist_config.add_dirs()
@@ -82,6 +83,7 @@ class HadoopBase(object):
         self.configure_hadoop()
         unitdata.kv().set('hadoop.base.installed', True)
         unitdata.kv().flush(True)
+        hookenv.status_set('waiting', 'Apache Hadoop base installed')
 
     def configure_hosts_file(self):
         """
