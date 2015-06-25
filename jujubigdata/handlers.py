@@ -123,7 +123,10 @@ class HadoopBase(object):
         java_installer = Path(jujuresources.resource_path('java-installer'))
         java_installer.chmod(0o755)
         output = check_output([java_installer], env=env)
-        java_home, java_version = map(str.strip, output.strip().split('\n'))
+        lines = map(str.strip, output.strip().split('\n'))
+        if len(lines) != 2:
+            raise ValueError('Unexpected output from java-installer: %s' % output)
+        java_home, java_version = lines
         unitdata.kv().set('java.home', java_home)
         unitdata.kv().set('java.version', java_version)
 
@@ -151,7 +154,7 @@ class HadoopBase(object):
         with utils.environment_edit_in_place('/etc/environment') as env:
             env['JAVA_HOME'] = java_home
             if java_bin not in env['PATH']:
-                env['PATH'] = ':'.join([env['PATH'], java_bin])
+                env['PATH'] = ':'.join([java_bin, env['PATH']])  # ensure that correct java is used
             if hadoop_bin not in env['PATH']:
                 env['PATH'] = ':'.join([env['PATH'], hadoop_bin])
             if hadoop_sbin not in env['PATH']:
