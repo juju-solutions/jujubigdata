@@ -474,7 +474,7 @@ class verify_resources(object):
     def __call__(self):
         import jujuresources
         mirror_url = hookenv.config('resources_mirror')
-        hookenv.status_set('maintenance', 'Fetching resource%s' % ('s' if len(self.which) > 1 else ''))
+        hookenv.status_set('maintenance', 'Fetching resources')
         result = jujuresources.fetch(self.which, mirror_url=mirror_url)
         if not result:
             missing = jujuresources.invalid(self.which)
