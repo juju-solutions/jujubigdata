@@ -487,3 +487,16 @@ class Hive(Relation):
                 'port': self.port,
             })
         return data
+
+
+class Spark(Relation):
+    relation_name = 'spark'
+    required_keys = ['ready']
+
+    def provide(self, remote_service, all_ready):
+        data = super(Spark, self).provide(remote_service, all_ready)
+        if all_ready:
+            data.update({
+                'ready': 'true',
+            })
+        return data
