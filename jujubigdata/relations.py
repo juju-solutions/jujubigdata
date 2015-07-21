@@ -10,6 +10,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # Apache License for more details.
 
+import pwd
 import json
 
 from charmhelpers.core import hookenv
@@ -111,9 +112,15 @@ class SSHRelation(Relation):
 
     def provide(self, remote_service, all_ready):
         data = super(SSHRelation, self).provide(remote_service, all_ready)
-        data.update({
-            'ssh-key': utils.get_ssh_key(self.ssh_user),
-        })
+        try:
+            pwd.getpwnam(self.ssh_user)
+        except KeyError:
+            hookenv.log('Cannot provide SSH key yet, user not available: %s' % self.ssh_user)
+            return data
+        else:
+            data.update({
+                'ssh-key': utils.get_ssh_key(self.ssh_user),
+            })
         return data
 
 
