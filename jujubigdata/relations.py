@@ -116,7 +116,6 @@ class SSHRelation(Relation):
             pwd.getpwnam(self.ssh_user)
         except KeyError:
             hookenv.log('Cannot provide SSH key yet, user not available: %s' % self.ssh_user)
-            return data
         else:
             data.update({
                 'ssh-key': utils.get_ssh_key(self.ssh_user),
