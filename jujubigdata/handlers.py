@@ -407,7 +407,10 @@ class YARN(object):
         if not unit:
             return None, None
         host = unit.replace('/', '-')
-        return host, data['port'], data['historyserver-port']
+        port = data['port']
+        history_http = data['historyserver-http']
+        history_ipc = data['historyserver-ipc']
+        return host, port, history_http, history_ipc
 
     def _local(self):
         """
@@ -416,8 +419,9 @@ class YARN(object):
         """
         host = hookenv.local_unit().replace('/', '-')
         port = self.hadoop_base.dist_config.port('resourcemanager')
-        history_port = self.hadoop_base.dist_config.port('jobhistory')
-        return host, port, history_port
+        history_http = self.hadoop_base.dist_config.port('jh_webapp_http')
+        history_ipc = self.hadoop_base.dist_config.port('jobhistory')
+        return host, port, history_http, history_ipc
 
     def configure_resourcemanager(self):
         self.configure_yarn_base(*self._local())
@@ -444,7 +448,7 @@ class YARN(object):
     def configure_client(self):
         self.configure_yarn_base(*self._remote("resourcemanager"))
 
-    def configure_yarn_base(self, host, port, history_port):
+    def configure_yarn_base(self, host, port, history_http, history_ipc):
         dc = self.hadoop_base.dist_config
         yarn_site = dc.path('hadoop_conf') / 'yarn-site.xml'
         with utils.xmlpropmap_edit_in_place(yarn_site) as props:
@@ -452,11 +456,11 @@ class YARN(object):
             if host:
                 props['yarn.resourcemanager.hostname'] = '{}'.format(host)
                 props['yarn.resourcemanager.address'] = '{}:{}'.format(host, port)
-                props["yarn.log.server.url"] = "{}:{}/jobhistory/logs/".format(host, dc.port('rm_log'))
+                props["yarn.log.server.url"] = "{}:{}/jobhistory/logs/".format(host, history_http)
         mapred_site = dc.path('hadoop_conf') / 'mapred-site.xml'
         with utils.xmlpropmap_edit_in_place(mapred_site) as props:
-            if host and history_port:
-                props["mapreduce.jobhistory.address"] = "{}:{}".format(host, history_port)
+            if host and history_ipc:
+                props["mapreduce.jobhistory.address"] = "{}:{}".format(host, history_ipc)
             props["mapreduce.framework.name"] = 'yarn'
 
     def install_demo(self):

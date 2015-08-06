@@ -208,11 +208,14 @@ class ResourceManager(SpecMatchingRelation, EtcHostsRelation):
     This is the relation that clients should use.
     """
     relation_name = 'resourcemanager'
-    required_keys = ['private-address', 'has_slave', 'historyserver-port', 'port']
+    required_keys = ['private-address', 'has_slave', 'historyserver-http',
+                     'historyserver-ipc', 'port']
 
-    def __init__(self, spec=None, port=None, historyserver_port=None, *args, **kwargs):
+    def __init__(self, spec=None, port=None, historyserver_http=None,
+                 historyserver_ipc=None, *args, **kwargs):
         self.port = port  # only needed for provides
-        self.historyserver_port = historyserver_port  # only needed for provides
+        self.historyserver_http = historyserver_http  # only needed for provides
+        self.historyserver_ipc = historyserver_ipc    # only needed for provides
         utils.initialize_kv_host()
         super(ResourceManager, self).__init__(spec, *args, **kwargs)
 
@@ -222,7 +225,8 @@ class ResourceManager(SpecMatchingRelation, EtcHostsRelation):
             data.update({
                 'has_slave': NodeManager().is_ready(),
                 'port': self.port,
-                'historyserver-port': self.historyserver_port,
+                'historyserver-http': self.historyserver_http,
+                'historyserver-ipc': self.historyserver_ipc,
             })
         return data
 
