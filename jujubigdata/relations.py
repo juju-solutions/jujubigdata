@@ -510,3 +510,21 @@ class Spark(Relation):
                 'ready': 'true',
             })
         return data
+
+
+class Zookeeper(Relation):
+    relation_name = 'zookeeper'
+    required_keys = ['port', 'ready']
+
+    def __init__(self, port=None, *args, **kwargs):
+        self.port = port  # only needed for provides
+        super(Zookeeper, self).__init__(*args, **kwargs)
+
+    def provide(self, remote_service, all_ready):
+        data = super(Zookeeper, self).provide(remote_service, all_ready)
+        if all_ready:
+            data.update({
+                'ready': 'true',
+                'port': self.port,
+            })
+        return data
