@@ -514,7 +514,7 @@ class Spark(Relation):
 
 class Zookeeper(Relation):
     relation_name = 'zookeeper'
-    required_keys = ['port', 'ready']
+    required_keys = ['private-address', 'port', 'ready']
 
     def __init__(self, port=None, *args, **kwargs):
         self.port = port  # only needed for provides
