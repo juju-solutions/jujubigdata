@@ -514,7 +514,7 @@ class Spark(Relation):
 
 class Zookeeper(Relation):
     relation_name = 'zookeeper'
-    required_keys = ['private-address', 'port', 'ready']
+    required_keys = ['private-address', 'port']
 
     def __init__(self, port=None, *args, **kwargs):
         self.port = port  # only needed for provides
@@ -524,7 +524,6 @@ class Zookeeper(Relation):
         data = super(Zookeeper, self).provide(remote_service, all_ready)
         if all_ready:
             data.update({
-                'ready': 'true',
                 'port': self.port,
             })
         return data
