@@ -165,6 +165,7 @@ class NameNode(SpecMatchingRelation, EtcHostsRelation):
     """
     relation_name = 'namenode'
     required_keys = ['private-address', 'has_slave', 'port', 'webhdfs-port']
+    require_slave = True
 
     def __init__(self, spec=None, port=None, webhdfs_port=None, *args, **kwargs):
         self.port = port  # only needed for provides
@@ -187,10 +188,17 @@ class NameNode(SpecMatchingRelation, EtcHostsRelation):
         Check if the NameNode has any DataNode slaves registered. This reflects
         if HDFS is ready without having to wait for utils.wait_for_hdfs.
         """
-        if not self.is_ready():
+        if not super(NameNode, self).is_ready():
             return False
         data = self.filtered_data().values()[0]
-        return data['has_slave']
+        return utils.strtobool(data['has_slave'])
+
+    def is_ready(self):
+        _is_ready = super(NameNode, self).is_ready()
+        if self.require_slave:
+            return _is_ready and self.has_slave()
+        else:
+            return _is_ready
 
 
 class NameNodeMaster(NameNode, SSHRelation):
@@ -199,6 +207,7 @@ class NameNodeMaster(NameNode, SSHRelation):
     """
     relation_name = 'datanode'
     ssh_user = 'hdfs'
+    require_slave = False
 
 
 class ResourceManager(SpecMatchingRelation, EtcHostsRelation):
@@ -210,6 +219,7 @@ class ResourceManager(SpecMatchingRelation, EtcHostsRelation):
     relation_name = 'resourcemanager'
     required_keys = ['private-address', 'has_slave', 'historyserver-http',
                      'historyserver-ipc', 'port']
+    require_slave = True
 
     def __init__(self, spec=None, port=None, historyserver_http=None,
                  historyserver_ipc=None, *args, **kwargs):
@@ -230,6 +240,22 @@ class ResourceManager(SpecMatchingRelation, EtcHostsRelation):
             })
         return data
 
+    def has_slave(self):
+        """
+        Check if the ResourceManager has any NodeManager slaves registered.
+        """
+        if not super(ResourceManager, self).is_ready():
+            return False
+        data = self.filtered_data().values()[0]
+        return utils.strtobool(data['has_slave'])
+
+    def is_ready(self):
+        _is_ready = super(ResourceManager, self).is_ready()
+        if self.require_slave:
+            return _is_ready and self.has_slave()
+        else:
+            return _is_ready
+
 
 class ResourceManagerMaster(ResourceManager, SSHRelation):
     """
@@ -237,6 +263,7 @@ class ResourceManagerMaster(ResourceManager, SSHRelation):
     """
     relation_name = 'nodemanager'
     ssh_user = 'yarn'
+    require_slave = False
 
 
 class DataNode(SpecMatchingRelation):
