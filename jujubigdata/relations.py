@@ -554,3 +554,14 @@ class Zookeeper(Relation):
                 'port': self.port,
             })
         return data
+
+
+class Ganglia(Relation):
+    relation_name = 'ganglia'
+    required_keys = ['private-address']
+
+    def host(self):
+        if not self.is_ready():
+                return None
+        dict = self.filtered_data().values()[0]
+        return dict['private-address']
