@@ -18,7 +18,7 @@ from contextlib import contextmanager
 from subprocess import check_call, check_output, CalledProcessError
 from xml.etree import ElementTree as ET
 from xml.dom import minidom
-from distutils.util import strtobool
+from distutils.util import strtobool as _strtobool
 from path import Path
 
 from charmhelpers.core import unitdata
@@ -262,6 +262,10 @@ def environment_edit_in_place(filename='/etc/environment'):
     etc_env.write_lines('{}="{}"'.format(k, v) for k, v in data.items())
 
 
+def strtobool(value):
+    return bool(_strtobool(str(value)))
+
+
 def normalize_strbool(value):
     intbool = strtobool(value)
     return str(bool(intbool)).lower()
@@ -473,13 +477,15 @@ class verify_resources(object):
 
     def __call__(self):
         import jujuresources
-        mirror_url = hookenv.config('resources_mirror')
-        hookenv.status_set('maintenance', 'Fetching resources')
-        result = jujuresources.fetch(self.which, mirror_url=mirror_url)
-        if not result:
-            missing = jujuresources.invalid(self.which)
-            hookenv.status_set('blocked', 'Unable to fetch required resource%s: %s' % (
-                's' if len(missing) > 1 else '',
-                ', '.join(missing),
-            ))
+        result = True
+        if not jujuresources.verify(self.which):
+            mirror_url = hookenv.config('resources_mirror')
+            hookenv.status_set('maintenance', 'Fetching resources')
+            result = jujuresources.fetch(self.which, mirror_url=mirror_url)
+            if not result:
+                missing = jujuresources.invalid(self.which)
+                hookenv.status_set('blocked', 'Unable to fetch required resource%s: %s' % (
+                    's' if len(missing) > 1 else '',
+                    ', '.join(missing),
+                ))
         return result

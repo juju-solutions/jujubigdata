@@ -331,37 +331,54 @@ class HadoopPlugin(Relation):
     The endpoint will ensure that the distribution, version, Java, etc. are all
     compatible to ensure a properly functioning Hadoop ecosystem.
 
-    Charms using this interface should call :meth:`hdfs_is_ready` to
-    determine if this relation is ready to use.
+    Charms using this interface can call :meth:`is_ready` (or :meth:`hdfs_is_ready`)
+    to determine if this relation is ready to use.
     """
     relation_name = 'hadoop-plugin'
-    required_keys = ['hdfs-ready']
+    required_keys = ['yarn-ready', 'hdfs-ready']
     '''
-    This key will be set on the relation once everything is installed,
-    configured, connected, and ready to receive work.  This key can be
-    checked by calling :meth:`hdfs_is_ready`, or manually via Juju's
-    ``relation-get``.
+    These keys will be set on the relation once everything is installed,
+    configured, connected, and ready to receive work.  They can be
+    checked by calling :meth:`is_ready`, or manually via Juju's ``relation-get``.
     '''
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, hdfs_only=False, *args, **kwargs):
+        if hdfs_only:
+            self.required_keys = ['hdfs-ready']
         super(HadoopPlugin, self).__init__(*args, **kwargs)
 
     def provide(self, remote_service, all_ready):
         """
         Used by the endpoint to provide the :attr:`required_keys`.
         """
-        if not all_ready:
-            return {}
-        if not NameNode().has_slave():
+        hdfs_ready = NameNode().is_ready()
+        yarn_ready = ResourceManager().is_ready()
+        if hdfs_ready:
+            # make sure we can actually reach HDFS
             utils.wait_for_hdfs(300)  # will error if timeout
-        return {'hdfs-ready': True}
+        return {
+            'hdfs-ready': utils.normalize_strbool(hdfs_ready),
+            'yarn-ready': utils.normalize_strbool(yarn_ready),
+        }
+
+    def is_ready(self):
+        if not super(HadoopPlugin, self).is_ready():
+            return False
+        data = self.filtered_data().values()[0]
+        hdfs_ready = utils.strtobool(data.get('hdfs-ready', 'False'))
+        yarn_ready = utils.strtobool(data.get('yarn-ready', 'False'))
+        if 'hdfs-ready' in self.required_keys and not hdfs_ready:
+            return False
+        if 'yarn-ready' in self.required_keys and not yarn_ready:
+            return False
+        return True
 
     def hdfs_is_ready(self):
         """
         Check if the Hadoop libraries and installed and configured and HDFS is
         connected and ready to handle work (at least one DataNode available).
 
-        (This is a synonym for ``self.is_ready()``.)
+        (This is a synonym for :meth:`is_ready`.)
         """
         return self.is_ready()
 
@@ -571,3 +588,14 @@ class Zookeeper(Relation):
                 'port': self.port,
             })
         return data
+
+
+class Ganglia(Relation):
+    relation_name = 'ganglia'
+    required_keys = ['private-address']
+
+    def host(self):
+        if not self.is_ready():
+            return None
+        dict = self.filtered_data().values()[0]
+        return dict['private-address']
