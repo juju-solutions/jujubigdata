@@ -526,6 +526,23 @@ class Hive(Relation):
         return data
 
 
+class Kafka(Relation):
+    relation_name = 'kafka'
+    required_keys = ['private-address', 'port']
+
+    def __init__(self, port=None, *args, **kwargs):
+        self.port = port  # only needed for provides
+        super(Kafka, self).__init__(*args, **kwargs)
+
+    def provide(self, remote_service, all_ready):
+        data = super(Kafka, self).provide(remote_service, all_ready)
+        if all_ready:
+            data.update({
+                'port': self.port,
+            })
+        return data
+
+
 class Spark(Relation):
     relation_name = 'spark'
     required_keys = ['ready']
