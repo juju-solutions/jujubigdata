@@ -525,9 +525,9 @@ class FlumeAgent(Relation):
         return data
 
 
-class HBase(Relation):
+class HBase(SSHRelation):
     relation_name = 'hbase'
-    required_keys = ['private-address', 'master-port', 'region-port']
+    required_keys = ['private-address', 'master-port', 'region-port', 'ssh-key']
 
     def __init__(self, master=None, region=None, *args, **kwargs):
         self.master_port = master  # only needed for provides
