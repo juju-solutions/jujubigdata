@@ -525,6 +525,25 @@ class FlumeAgent(Relation):
         return data
 
 
+class HBase(Relation):
+    relation_name = 'hbase'
+    required_keys = ['private-address', 'master-port', 'region-port']
+
+    def __init__(self, master=None, region=None, *args, **kwargs):
+        self.master_port = master  # only needed for provides
+        self.region_port = region  # only needed for provides
+        super(HBase, self).__init__(*args, **kwargs)
+
+    def provide(self, remote_service, all_ready):
+        data = super(HBase, self).provide(remote_service, all_ready)
+        if all_ready:
+            data.update({
+                'master-port': self.master_port,
+                'region-port': self.region_port,
+            })
+        return data
+
+
 class Hive(Relation):
     relation_name = 'hive'
     required_keys = ['private-address', 'port', 'ready']
