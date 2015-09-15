@@ -443,7 +443,7 @@ def wait_for_hdfs(timeout):
     while time.time() - start < timeout:
         try:
             output = run_as('hdfs', 'hdfs', 'dfsadmin', '-report', capture_output=True)
-            if 'Datanodes available' in output:
+            if 'Datanodes available' or 'Live datanodes' in output:
                 return True
         except CalledProcessError as e:
             output = e.output  # probably a "connection refused"; wait and try again
