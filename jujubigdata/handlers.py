@@ -385,9 +385,8 @@ class YARN(object):
         self._jobhistory_daemon('stop', 'historyserver')
 
     def start_jobhistory(self):
-        if utils.jps('JobHistoryServer'):
-            self._jobhistory_daemon('stop', 'historyserver')
-        self._jobhistory_daemon('start', 'historyserver')
+        if not utils.jps('JobHistoryServer'):
+            self._jobhistory_daemon('start', 'historyserver')
 
     def stop_nodemanager(self):
         self._yarn_daemon('stop', 'nodemanager')
@@ -478,6 +477,7 @@ class YARN(object):
 
     def register_slaves(self):
         self.hadoop_base.register_slaves('nodemanager')
+        self.hadoop_base.run('mapred', 'bin/yarn', 'rmadmin', '-refreshNodes')
 
     def _yarn_daemon(self, command, service):
         self.hadoop_base.run('yarn', 'sbin/yarn-daemon.sh',
