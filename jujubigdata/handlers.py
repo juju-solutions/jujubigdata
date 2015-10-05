@@ -359,6 +359,7 @@ class HDFS(object):
 
     def register_slaves(self):
         self.hadoop_base.register_slaves('datanode')
+        self.hadoop_base.run('hdfs', 'bin/hdfs', 'dfsadmin', '-refreshNodes')
 
     def _hadoop_daemon(self, command, service):
         self.hadoop_base.run('hdfs', 'sbin/hadoop-daemon.sh',
