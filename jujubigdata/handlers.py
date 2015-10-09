@@ -45,8 +45,15 @@ class HadoopBase(object):
         self.client_spec = {
             'hadoop': self.dist_config.hadoop_version,
         }
-        self.verify_conditional_resources = utils.verify_resources('hadoop-%s' % self.cpu_arch)
+        hadoop_version = self.dist_config.hadoop_version
+        try:
+            jujuresources.resource_path('hadoop-%s-%s' % (hadoop_version, self.cpu_arch))
+            self.verify_conditional_resources = utils.verify_resources('hadoop-%s-%s' % (hadoop_version, self.cpu_arch))
+        except KeyError:
+            self.verify_conditional_resources = utils.verify_resources('hadoop-%s' % (self.cpu_arch))
+            pass
 
+        
     def spec(self):
         """
         Generate the full spec for keeping charms in sync.
@@ -131,10 +138,19 @@ class HadoopBase(object):
         unitdata.kv().set('java.version', java_version)
 
     def install_hadoop(self):
-        jujuresources.install('hadoop-%s' %
-                              self.cpu_arch,
-                              destination=self.dist_config.path('hadoop'),
-                              skip_top_level=True)
+        hadoop_version = self.dist_config.hadoop_version
+        try:
+            jujuresources.install('hadoop-%s-%s' %
+                                  (hadoop_version,
+                                   self.cpu_arch),
+                                  destination=self.dist_config.path('hadoop'),
+                                  skip_top_level=True)
+        except:
+            hookenv.log("Falling back to non-version specific download of hadoop...")
+            jujuresources.install('hadoop-%s' %
+                                  (self.cpu_arch),
+                                  destination=self.dist_config.path('hadoop'),
+                                  skip_top_level=True)
 
     def setup_hadoop_config(self):
         # copy default config into alternate dir
