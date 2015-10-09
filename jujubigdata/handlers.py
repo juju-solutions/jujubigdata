@@ -51,9 +51,7 @@ class HadoopBase(object):
             self.verify_conditional_resources = utils.verify_resources('hadoop-%s-%s' % (hadoop_version, self.cpu_arch))
         except KeyError:
             self.verify_conditional_resources = utils.verify_resources('hadoop-%s' % (self.cpu_arch))
-            pass
 
-        
     def spec(self):
         """
         Generate the full spec for keeping charms in sync.
@@ -145,7 +143,7 @@ class HadoopBase(object):
                                    self.cpu_arch),
                                   destination=self.dist_config.path('hadoop'),
                                   skip_top_level=True)
-        except:
+        except KeyError:
             hookenv.log("Falling back to non-version specific download of hadoop...")
             jujuresources.install('hadoop-%s' %
                                   (self.cpu_arch),
