@@ -150,6 +150,15 @@ class HadoopBase(object):
                                   destination=self.dist_config.path('hadoop'),
                                   skip_top_level=True)
 
+        # Install our lzo compression codec if it's defined in resources.yaml
+        try:
+            jujuresources.install('hadoop-lzo-%s' % self.cpu_arch,
+                                  destination=self.dist_config.path('hadoop'),
+                                  skip_top_level=False)
+            unitdata.kv().set('hadoop.lzo.installed', True)
+        except KeyError:
+            hookenv.log("hadoop-lzo was not installed. LZO compression will not be available.")
+
     def setup_hadoop_config(self):
         # copy default config into alternate dir
         conf_dir = self.dist_config.path('hadoop') / 'etc/hadoop'
