@@ -132,8 +132,9 @@ class HadoopBase(object):
         if len(lines) != 2:
             raise ValueError('Unexpected output from java-installer: %s' % output)
         java_home, java_version = lines
+        java_major, java_release = java_version.split("_")
         unitdata.kv().set('java.home', java_home)
-        unitdata.kv().set('java.version', java_version)
+        unitdata.kv().set('java.version', java_major)
 
     def install_hadoop(self):
         hadoop_version = self.dist_config.hadoop_version
