@@ -151,7 +151,12 @@ class HadoopBase(object):
                                   skip_top_level=True)
 
         # Install our lzo compression codec if it's defined in resources.yaml
+        mirror = hookenv.config('resources_mirror')
         try:
+            # resource_path throws a KeyError if hadoop-lzo-arch is not defined
+            jujuresources.resource_path('hadoop-lzo-%s' % self.cpu_arch)
+            jujuresources.fetch('hadoop-lzo-%s' % self.cpu_arch,
+                                mirror_url=mirror)
             jujuresources.install('hadoop-lzo-%s' % self.cpu_arch,
                                   destination=self.dist_config.path('hadoop'),
                                   skip_top_level=False)
