@@ -20,6 +20,7 @@ from xml.etree import ElementTree as ET
 from xml.dom import minidom
 from distutils.util import strtobool as _strtobool
 from path import Path
+from tempfile import NamedTemporaryFile
 
 from charmhelpers.core import unitdata
 from charmhelpers.core import hookenv
@@ -312,6 +313,7 @@ def run_as(user, command, *args, **kwargs):
     :param list args: Additional args to pass to command
     :param dict env: Additional env variables (will be merged with ``/etc/environment``)
     :param bool capture_output: Capture and return output (default: False)
+    :param str input: Stdin for command
     """
     parts = [command] + list(args)
     quoted = ' '.join("'%s'" % p for p in parts)
@@ -319,7 +321,16 @@ def run_as(user, command, *args, **kwargs):
     if 'env' in kwargs:
         env.update(kwargs['env'])
     run = check_output if kwargs.get('capture_output') else check_call
-    return run(['su', user, '-c', quoted], env=env)
+    try:
+        stdin = None
+        if 'input' in kwargs:
+            stdin = NamedTemporaryFile()
+            stdin.write(kwargs['input'])
+            stdin.seek(0)
+        return run(['su', user, '-c', quoted], env=env, stdin=stdin)
+    finally:
+        if stdin:
+            stdin.close() # this also removes tempfile
 
 
 def update_etc_hosts(ips_to_names):
