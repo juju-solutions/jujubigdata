@@ -330,7 +330,7 @@ def run_as(user, command, *args, **kwargs):
         return run(['su', user, '-c', quoted], env=env, stdin=stdin)
     finally:
         if stdin:
-            stdin.close() # this also removes tempfile
+            stdin.close()  # this also removes tempfile
 
 
 def update_etc_hosts(ips_to_names):
