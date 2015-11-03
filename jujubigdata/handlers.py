@@ -30,6 +30,9 @@ class HadoopBase(object):
         self.dist_config = dist_config
         self.charm_config = hookenv.config()
         self.cpu_arch = host.cpu_arch()
+        self.client_spec = {
+            'hadoop': self.dist_config.hadoop_version,
+        }
 
         # dist_config will have simple validation done on primary keys in the
         # dist.yaml, but we need to ensure deeper values are present.
@@ -42,15 +45,25 @@ class HadoopBase(object):
                 'ies' if len(missing_dirs) > 1 else 'y',
                 ', '.join(missing_dirs)))
 
-        self.client_spec = {
-            'hadoop': self.dist_config.hadoop_version,
-        }
+        # Build a list of hadoop resources needed from resources.yaml
+        hadoop_resources = []
         hadoop_version = self.dist_config.hadoop_version
         try:
             jujuresources.resource_path('hadoop-%s-%s' % (hadoop_version, self.cpu_arch))
-            self.verify_conditional_resources = utils.verify_resources('hadoop-%s-%s' % (hadoop_version, self.cpu_arch))
+            hadoop_resources.append('hadoop-%s-%s' % (hadoop_version, self.cpu_arch))
         except KeyError:
-            self.verify_conditional_resources = utils.verify_resources('hadoop-%s' % (self.cpu_arch))
+            hadoop_resources.append('hadoop-%s' % (self.cpu_arch))
+
+        # LZO compression for hadoop is distributed separately. Add it to the
+        # list of reqs if defined in resources.yaml
+        try:
+            jujuresources.resource_path('hadoop-lzo-%s' % self.cpu_arch)
+            hadoop_resources.append('hadoop-lzo-%s' % (self.cpu_arch))
+        except KeyError:
+            pass
+
+        # Verify and fetch the required hadoop resources
+        self.verify_conditional_resources = utils.verify_resources(*hadoop_resources)
 
     def spec(self):
         """
@@ -157,7 +170,9 @@ class HadoopBase(object):
                                   skip_top_level=False)
             unitdata.kv().set('hadoop.lzo.installed', True)
         except KeyError:
-            hookenv.log("hadoop-lzo was not installed. LZO compression will not be available.")
+            msg = ("The hadoop-lzo-%s resource was not found."
+                   "LZO compression will not be available." % self.cpu_arch)
+            hookenv.log(msg)
 
     def setup_hadoop_config(self):
         # copy default config into alternate dir
