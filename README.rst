@@ -7,7 +7,7 @@ collection of functions and classes for simplifying the development of
 includes utilities for:
 
 * Interacting with Apache Hadoop
-* Connecting to the core Apache Hadoop `platform bundle <https://jujucharms.com/u/bigdata-dev/apache-core-batch-processing/>`_
+* Connecting to the core Apache Hadoop `platform bundle <https://jujucharms.com/apache-core-batch-processing/>`_
 * Reading and writing configuration in various formats
 * Managing distribution-specific configuration in a generalized, maintainable fashion
 
@@ -19,7 +19,7 @@ library.
 Contact Information
 -------------------
 
-`bigdata-dev@canonical.com <mailto:bigdata-dev@canonical.com>`_
+`bigdata@lists.ubuntu.com <mailto:bigdata@lists.ubuntu.com>`_
 
 
 Resources
@@ -28,7 +28,7 @@ Resources
 - `Apache Hadoop <http://hadoop.apache.org/>`_ home page
 - `Apache Hadoop bug tracker <http://hadoop.apache.org/issue_tracking.html>`_
 - `Apache Hadoop mailing lists <http://hadoop.apache.org/mailing_lists.html>`_
-- `Apache Hadoop charms <http://jujucharms.com/?text=apache-hadoop>`_
+- `Apache Hadoop charms <https://jujucharms.com/q/apache-hadoop>`_
 - `Juju Big Data bug tracker <https://bugs.launchpad.net/charms/+source/apache-core-batch-processing/+filebug>`_
 - `Juju mailing list <https://lists.ubuntu.com/mailman/listinfo/juju>`_
 - `Juju community <https://jujucharms.com/community>`_
