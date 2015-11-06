@@ -296,14 +296,11 @@ def read_etc_env():
     """
     env = {}
 
-    # Proxy config is not stored in /etc/environment on a Juju unit, but we
-    # need to pass it along so proxies are honored.
-    env['HTTP_PROXY'] = os.getenv('HTTP_PROXY', '')
-    env['HTTPS_PROXY'] = os.getenv('HTTPS_PROXY', '')
-    env['NO_PROXY'] = os.getenv('NO_PROXY', '')
-    env['http_proxy'] = os.getenv('http_proxy', '')
-    env['https_proxy'] = os.getenv('https_proxy', '')
-    env['no_proxy'] = os.getenv('no_proxy', '')
+    # Proxy config (e.g. https_proxy, no_proxy, etc) is not stored in
+    # /etc/environment on a Juju unit, but we should pass it along so anyone
+    # using this env will have correct proxy settings.
+    env.update({k: v for k, v in os.environ.items()
+                if k.lower().endswith('_proxy')})
 
     etc_env = Path('/etc/environment')
     if etc_env.exists():
