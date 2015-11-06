@@ -10,6 +10,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # Apache License for more details.
 
+import os
 import re
 import time
 import yaml
@@ -290,10 +291,21 @@ class TimeoutError(Exception):
 
 def read_etc_env():
     """
-    Read /etc/environment and return it as a dict.
+    Read /etc/environment and return it, along with proxy configuration, as
+    a dict.
     """
-    etc_env = Path('/etc/environment')
     env = {}
+
+    # Proxy config is not stored in /etc/environment on a Juju unit, but we
+    # need to pass it along so proxies are honored.
+    env['HTTP_PROXY'] = os.getenv('HTTP_PROXY', '')
+    env['HTTPS_PROXY'] = os.getenv('HTTPS_PROXY', '')
+    env['NO_PROXY'] = os.getenv('NO_PROXY', '')
+    env['http_proxy'] = os.getenv('http_proxy', '')
+    env['https_proxy'] = os.getenv('https_proxy', '')
+    env['no_proxy'] = os.getenv('no_proxy', '')
+
+    etc_env = Path('/etc/environment')
     if etc_env.exists():
         for line in etc_env.lines():
             var, value = line.split('=')
