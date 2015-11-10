@@ -3,8 +3,8 @@ dist/
 build/
 jujubigdata.egg-info/
 docs/_build
-.venv
-.venv3
+.coverage
+.tox
 .unit-state.db
 *.pyc
 __pycache__

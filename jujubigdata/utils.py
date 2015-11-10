@@ -46,7 +46,8 @@ class DistConfig(object):
     :param str filename: File to process (default dist.yaml)
     :param list required_keys: A list of keys required to be present in the yaml
 
-    Example dist.yaml with supported keys:
+    Example dist.yaml with supported keys::
+
         vendor: '<name>'
         hadoop_version: '<version>'
         packages:
@@ -193,7 +194,7 @@ def xmlpropmap_edit_in_place(filename):
     """
     Edit an XML property map (configuration) file in-place.
 
-    This helper acts as a context manager which edits an XML file of the form:
+    This helper acts as a context manager which edits an XML file of the form::
 
         <configuration>
             <property>
@@ -208,7 +209,7 @@ def xmlpropmap_edit_in_place(filename):
     mappings.  Properties can then be modified, added, or removed, and the
     changes will be reflected in the file.
 
-    Example usage:
+    Example usage::
 
         with xmlpropmap_edit_in_place('my.xml') as props:
             props['foo'] = 'bar'
@@ -486,7 +487,7 @@ class verify_resources(object):
     """
     Predicate for specific named resources, with useful rendering in the logs.
 
-    :param str *which: One or more resource names to fetch & verify.  Defaults to
+    :param str \*which: One or more resource names to fetch & verify.  Defaults to
         all non-optional resources.
     """
     def __init__(self, *which):
