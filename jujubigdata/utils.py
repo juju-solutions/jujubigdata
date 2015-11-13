@@ -15,6 +15,7 @@ import re
 import time
 import yaml
 import socket
+import subprocess
 from contextlib import contextmanager
 from subprocess import check_call, check_output, CalledProcessError
 from xml.etree import ElementTree as ET
@@ -481,6 +482,10 @@ def wait_for_jps(process_name, timeout):
             return True
         time.sleep(2)
     raise TimeoutError('Timed-out waiting for jps process:\n%s' % process_name)
+
+
+def cpu_arch():
+    return subprocess.check_output(['uname', '-p']).strip()
 
 
 class verify_resources(object):
