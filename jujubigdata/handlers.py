@@ -148,6 +148,7 @@ class HadoopBase(object):
         java_major, java_release = java_version.split("_")
         unitdata.kv().set('java.home', java_home)
         unitdata.kv().set('java.version', java_major)
+        unitdata.kv().set('java.version.release', java_release)
 
     def install_hadoop(self):
         hadoop_version = self.dist_config.hadoop_version
