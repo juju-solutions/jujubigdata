@@ -258,7 +258,7 @@ def environment_edit_in_place(filename='/etc/environment'):
     Also note that the file is not locked during the edits.
     """
     etc_env = Path(filename)
-    lines = [l.strip().split('=') for l in etc_env.lines()]
+    lines = [l.strip().split('=', 1) for l in etc_env.lines()]
     data = {k.strip(): v.strip(' \'"') for k, v in lines}
     yield data
     etc_env.write_lines('{}="{}"'.format(k, v) for k, v in data.items())
