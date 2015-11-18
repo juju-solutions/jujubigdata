@@ -494,6 +494,7 @@ class YARN(object):
         yarn_site = dc.path('hadoop_conf') / 'yarn-site.xml'
         with utils.xmlpropmap_edit_in_place(yarn_site) as props:
             props['yarn.nodemanager.aux-services'] = 'mapreduce_shuffle'
+            props['yarn.nodemanager.vmem-check-enabled'] = 'false'
             if host:
                 props['yarn.resourcemanager.hostname'] = '{}'.format(host)
                 props['yarn.resourcemanager.address'] = '{}:{}'.format(host, port)
