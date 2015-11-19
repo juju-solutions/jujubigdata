@@ -353,10 +353,10 @@ class HDFS(object):
         with utils.xmlpropmap_edit_in_place(core_site) as props:
             if host and port:
                 props['fs.defaultFS'] = "hdfs://{host}:{port}".format(host=host, port=port)
-                props['hadoop.proxyuser.hue.hosts'] = "*"
-                props['hadoop.proxyuser.hue.groups'] = "*"
-                props['hadoop.proxyuser.oozie.groups'] = '*'
-                props['hadoop.proxyuser.oozie.hosts'] = '*'
+            props['hadoop.proxyuser.hue.hosts'] = "*"
+            props['hadoop.proxyuser.hue.groups'] = "*"
+            props['hadoop.proxyuser.oozie.groups'] = '*'
+            props['hadoop.proxyuser.oozie.hosts'] = '*'
             if unitdata.kv().get('hadoop.lzo.installed'):
                 props['io.compression.codecs'] = 'com.hadoop.compression.lzo.LzoCodec, com.hadoop.compression.lzo.LzopCodec'
                 props['io.compression.codec.lzo.class'] = 'com.hadoop.compression.lzo.LzoCodec'
