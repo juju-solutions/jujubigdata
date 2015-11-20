@@ -318,8 +318,9 @@ class HDFS(object):
             # FIXME hack-around until transition to layers is complete
             if not (secondary_host and secondary_port) and helpers:
                 unit, secondary = helpers.any_ready_unit('secondary')
-                secondary_host = secondary['hostname']
-                secondary_port = secondary['port']
+                if unit:
+                    secondary_host = secondary['hostname']
+                    secondary_port = secondary['port']
             if secondary_host and secondary_port:
                 props['dfs.secondary.http.address'] = '{host}:{port}'.format(
                     host=secondary_host,
