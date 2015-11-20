@@ -235,8 +235,7 @@ class HadoopBase(object):
             [
                 '# DO NOT EDIT',
                 '# This file is automatically managed by Juju',
-            ] + [
-            ]
+            ] + slaves
         )
         slaves_file.chown('ubuntu', 'hadoop')
 
