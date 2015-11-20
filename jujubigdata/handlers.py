@@ -20,7 +20,12 @@ import jujuresources
 from charmhelpers.core import host
 from charmhelpers.core import hookenv
 from charmhelpers.core import unitdata
-from charmhelpers.core.charmframework import helpers
+
+try:
+    from charmhelpers.core.charmframework import helpers
+except ImportError:
+    helpers = None  # hack-around until transition to layers is complete
+
 
 from jujubigdata import utils
 
@@ -220,22 +225,19 @@ class HadoopBase(object):
             r'export JAVA_HOME *=.*': 'export JAVA_HOME=%s' % java_home,
         })
 
-    def register_slaves(self, relation):
+    def register_slaves(self, slaves):
         """
         Add slaves to a hdfs or yarn master, determined by the relation name.
 
         :param str relation: 'datanode' for registering HDFS slaves;
                              'nodemanager' for registering YARN slaves.
         """
-        slaves = helpers.all_ready_units(relation)
         slaves_file = self.dist_config.path('hadoop_conf') / 'slaves'
         slaves_file.write_lines(
             [
                 '# DO NOT EDIT',
                 '# This file is automatically managed by Juju',
-            ] + [
-                data['hostname'] for slave, data in slaves
-            ]
+            ] + slaves
         )
         slaves_file.chown('ubuntu', 'hadoop')
 
@@ -291,25 +293,19 @@ class HDFS(object):
         to that unit.
         :param str relation: Name of the relation, e.g. "datanode" or "namenode"
         """
+        # FIXME delete when transition to layers is complete
         unit, data = helpers.any_ready_unit(relation)
         if not unit:
             return None, None
         host = unit.replace('/', '-')
         return host, data['port']
 
-    def _local(self):
-        """
-        Return the local hostname (which we derive from our unit name),
-        and namenode port from our dist.yaml
-        """
-        host = hookenv.local_unit().replace('/', '-')
-        port = self.hadoop_base.dist_config.port('namenode')
-        return host, port
-
-    def configure_namenode(self):
-        self.configure_hdfs_base(*self._local())
-        cfg = self.hadoop_base.charm_config
+    def configure_namenode(self, secondary_host=None, secondary_port=None):
         dc = self.hadoop_base.dist_config
+        host = hookenv.local_unit().replace('/', '-')
+        port = dc.port('namenode')
+        self.configure_hdfs_base(host, port)
+        cfg = self.hadoop_base.charm_config
         hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             props['dfs.replication'] = cfg['dfs_replication']
@@ -318,14 +314,19 @@ class HDFS(object):
             props['dfs.namenode.http-address'] = '0.0.0.0:{}'.format(dc.port('nn_webapp_http'))
             # TODO: support SSL
             # props['dfs.namenode.https-address'] = '0.0.0.0:{}'.format(dc.port('nn_webapp_https'))
-            unit, secondary = helpers.any_ready_unit('secondary')
-            if secondary:
+
+            # FIXME hack-around until transition to layers is complete
+            if not (secondary_host and secondary_port) and helpers:
+                unit, secondary = helpers.any_ready_unit('secondary')
+                secondary_host = secondary['hostname']
+                secondary_port = secondary['port']
+            if secondary_host and secondary_port:
                 props['dfs.secondary.http.address'] = '{host}:{port}'.format(
-                    host=secondary['hostname'],
-                    port=secondary['port'],
+                    host=secondary_host,
+                    port=secondary_port,
                 )
 
-    def configure_secondarynamenode(self):
+    def configure_secondarynamenode(self, host=None, port=None):
         """
         Configure the Secondary Namenode when the apache-hadoop-hdfs-secondary
         charm is deployed and related to apache-hadoop-hdfs-master.
@@ -335,16 +336,20 @@ class HDFS(object):
         namenode image and edits log files, joins them into new image and
         uploads the new image back to the (primary and the only) namenode.
         """
-        self.configure_hdfs_base(*self._remote("secondary"))
+        if not (host and port):
+            host, port = self._remote("secondary")
+        self.configure_hdfs_base(host, port)
 
-    def configure_datanode(self):
-            self.configure_hdfs_base(*self._remote("datanode"))
-            dc = self.hadoop_base.dist_config
-            hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
-            with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
-                props['dfs.datanode.http.address'] = '0.0.0.0:{}'.format(dc.port('dn_webapp_http'))
-                # TODO: support SSL
-                # props['dfs.datanode.https.address'] = '0.0.0.0:{}'.format(dc.port('dn_webapp_https'))
+    def configure_datanode(self, host=None, port=None):
+        if not (host and port):
+            host, port = self._remote("datanode")
+        self.configure_hdfs_base(host, port)
+        dc = self.hadoop_base.dist_config
+        hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
+        with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
+            props['dfs.datanode.http.address'] = '0.0.0.0:{}'.format(dc.port('dn_webapp_http'))
+            # TODO: support SSL
+            # props['dfs.datanode.https.address'] = '0.0.0.0:{}'.format(dc.port('dn_webapp_https'))
 
     def configure_client(self):
         self.configure_hdfs_base(*self._remote("namenode"))
@@ -400,8 +405,11 @@ class HDFS(object):
         unitdata.kv().set('hdfs.namenode.dirs.created', True)
         unitdata.kv().flush(True)
 
-    def register_slaves(self):
-        self.hadoop_base.register_slaves('datanode')
+    def register_slaves(self, slaves=None):
+        if not slaves:  # FIXME hack-around until transition to layers is complete
+            slaves = helpers.all_ready_units('datanode')
+            slaves = [data['hostname'] for slave, data in slaves]
+        self.hadoop_base.register_slaves(slaves)
         if utils.jps('NameNode'):
             self.hadoop_base.run('hdfs', 'bin/hdfs', 'dfsadmin', '-refreshNodes')
 
@@ -447,6 +455,7 @@ class YARN(object):
         to that unit.
         :param str relation: Name of the relation, e.g. "resourcemanager" or "nodemanager"
         """
+        # FIXME delete when transition to layers is complete
         unit, data = helpers.any_ready_unit(relation)
         if not unit:
             return None, None
@@ -486,11 +495,17 @@ class YARN(object):
             props["mapreduce.jobhistory.address"] = "0.0.0.0:{}".format(dc.port('jobhistory'))
             props["mapreduce.jobhistory.webapp.address"] = "0.0.0.0:{}".format(dc.port('jh_webapp_http'))
 
-    def configure_nodemanager(self):
-        self.configure_yarn_base(*self._remote("nodemanager"))
+    def configure_nodemanager(self, host=None, port=None, history_http=None, history_ipc=None):
+        if not all([host, port, history_http, history_ipc]):
+            # FIXME hack-around until transition to layers is complete
+            host, port, history_http, history_ipc = self._remote("nodemanager")
+        self.configure_yarn_base(host, port, history_http, history_ipc)
 
-    def configure_client(self):
-        self.configure_yarn_base(*self._remote("resourcemanager"))
+    def configure_client(self, host=None, port=None, history_http=None, history_ipc=None):
+        if not all([host, port, history_http, history_ipc]):
+            # FIXME hack-around until transition to layers is complete
+            host, port, history_http, history_ipc = self._remote("resourcemanager")
+        self.configure_yarn_base(host, port, history_http, history_ipc)
 
     def configure_yarn_base(self, host, port, history_http, history_ipc):
         dc = self.hadoop_base.dist_config
@@ -521,8 +536,11 @@ class YARN(object):
         unitdata.kv().set('yarn.client.demo.installed', True)
         unitdata.kv().flush(True)
 
-    def register_slaves(self):
-        self.hadoop_base.register_slaves('nodemanager')
+    def register_slaves(self, slaves=None):
+        if not slaves:  # FIXME hack-around until transition to layers is complete
+            slaves = helpers.all_ready_units('nodemanager')
+            slaves = [data['hostname'] for slave, data in slaves]
+        self.hadoop_base.register_slaves(slaves)
         if utils.jps('ResourceManager'):
             self.hadoop_base.run('mapred', 'bin/yarn', 'rmadmin', '-refreshNodes')
 

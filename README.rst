@@ -1,5 +1,8 @@
-Juju Big Data
-=============
+Juju Big Data |badge|
+=====================
+
+.. |badge| image:: https://travis-ci.org/juju-solutions/jujubigdata.svg
+    :target: https://travis-ci.org/juju-solutions/jujubigdata
 
 The `jujubigdata <https://github.com/juju-solutions/jujubigdata>`_ Python library is an
 collection of functions and classes for simplifying the development of
