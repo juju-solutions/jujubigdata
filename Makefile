@@ -63,4 +63,4 @@ release: docs
 	scripts/update-rev
 	.tox/docs/bin/python setup.py register sdist upload upload_docs
 	git tag release-${VERSION}
-	git push --tags upstream || git push --tags
+	git remote | xargs -L1 git push --tags
