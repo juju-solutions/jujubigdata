@@ -365,7 +365,9 @@ class HDFS(object):
             props['hadoop.proxyuser.hue.groups'] = "*"
             props['hadoop.proxyuser.oozie.groups'] = '*'
             props['hadoop.proxyuser.oozie.hosts'] = '*'
-            if unitdata.kv().get('hadoop.lzo.installed'):
+            lzo_installed = unitdata.kv().get('hadoop.lzo.installed')
+            lzo_enabled = hookenv.config().get('compression') == 'lzo'
+            if lzo_installed and lzo_enabled:
                 props['io.compression.codecs'] = ('com.hadoop.compression.lzo.LzoCodec, '
                                                   'com.hadoop.compression.lzo.LzopCodec')
                 props['io.compression.codec.lzo.class'] = 'com.hadoop.compression.lzo.LzoCodec'
