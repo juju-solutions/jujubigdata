@@ -61,6 +61,6 @@ docrelease: docs
 .PHONY: release
 release: docs
 	scripts/update-rev
-	git tag release-${VERSION}
-	git push --tags
 	.tox/docs/bin/python setup.py register sdist upload upload_docs
+	git tag release-${VERSION}
+	git push --tags upstream || git push --tags
