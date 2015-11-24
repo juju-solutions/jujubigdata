@@ -134,11 +134,8 @@ class DistConfig(object):
         for group in self.groups:
             host.add_group(group)
         for username, details in self.users.items():
-            primary_group = None
+            host.adduser(username)
             groups = details.get('groups', [])
-            if groups:
-                primary_group = groups[0]
-            host.adduser(username, group=primary_group)
             for group in groups:
                 host.add_user_to_group(username, group)
 
