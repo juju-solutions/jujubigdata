@@ -413,7 +413,7 @@ def resolve_private_address(addr):
 
 def initialize_kv_host():
     # get the hostname attrs from our local unit and update the kv store
-    local_ip = hookenv.unit_private_ip()
+    local_ip = resolve_private_address(hookenv.unit_private_ip())
     local_host = hookenv.local_unit().replace('/', '-')
     update_kv_host(local_ip, local_host)
 
