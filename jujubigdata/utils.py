@@ -303,7 +303,7 @@ def read_etc_env():
 
     etc_env = Path('/etc/environment')
     if etc_env.exists():
-        for line in etc_env.lines():
+        for line in etc_env.lines(retain=False):
             var, value = line.split('=', 1)
             env[var.strip()] = value.strip(' \'"')
     return env
