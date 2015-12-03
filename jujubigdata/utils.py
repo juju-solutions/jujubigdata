@@ -134,13 +134,13 @@ class DistConfig(object):
         for group in self.groups:
             host.add_group(group)
         for username, details in self.users.items():
-            primary_group = None
+            primary_grp = None
+            secondary_grps = None
             groups = details.get('groups', [])
             if groups:
                 primary_group = groups[0]
-            host.adduser(username, group=primary_group)
-            for group in groups:
-                host.add_user_to_group(username, group)
+                secondary_groups = groups[1:]
+            host.adduser(username, primary_group=primary_grp, secondary_groups=secondary_grps)
 
     def remove_dirs(self):
         # TODO: no removal function exists in CH, just log what we would do.
