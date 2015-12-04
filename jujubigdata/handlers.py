@@ -526,6 +526,8 @@ class YARN(object):
             if host and history_ipc:
                 props["mapreduce.jobhistory.address"] = "{}:{}".format(host, history_ipc)
             props["mapreduce.framework.name"] = 'yarn'
+            props["mapreduce.map.output.compress"] = 'true'
+            props["mapred.map.output.compress.codec"] = 'org.apache.hadoop.io.compress.SnappyCodec'
 
     def install_demo(self):
         if unitdata.kv().get('yarn.client.demo.installed'):
