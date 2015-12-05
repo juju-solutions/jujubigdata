@@ -140,6 +140,8 @@ class DistConfig(object):
             if groups:
                 primary_group = groups[0]
                 secondary_groups = groups[1:]
+            hookenv.log('Creating user {0} in primary group {1} and secondary groups {2}'
+                                               .format(username, primary_grp, secondary_grps))
             host.adduser(username, primary_group=primary_grp, secondary_groups=secondary_grps)
 
     def remove_dirs(self):
