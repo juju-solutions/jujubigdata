@@ -64,7 +64,7 @@ Replacing the Core
 ------------------
 
 As long as it supports the same interfaces described above, the core platform
-can be replaced with a different distribtution.  The recommended way to create
+can be replaced with a different distribution.  The recommended way to create
 charms for another distribution is to use the core platform charms as the base
 and modify the ``dist.yaml`` and ``resources.yaml``.
 
