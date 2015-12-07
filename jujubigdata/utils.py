@@ -176,14 +176,14 @@ def disable_firewall():
             check_call(['ufw', 'enable'])
 
 
-def re_edit_in_place(filename, subs):
+def re_edit_in_place(filename, subs, encoding='utf8'):
     """
     Perform a set of in-place edits to a file.
 
     :param str filename: Name of file to edit
     :param dict subs: Mapping of patterns to replacement strings
     """
-    with Path(filename).in_place() as (reader, writer):
+    with Path(filename).in_place(encoding=encoding) as (reader, writer):
         for line in reader:
             for pat, repl in subs.iteritems():
                 line = re.sub(pat, repl, line)
