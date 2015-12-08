@@ -167,7 +167,7 @@ def disable_firewall():
     """
     Temporarily disable the firewall, via ufw.
     """
-    status = check_output(['ufw', 'status'])
+    status = check_output(['ufw', 'status']).decode('utf8')
     already_disabled = 'inactive' in status
     if not already_disabled:
         check_call(['ufw', 'disable'])
@@ -283,7 +283,7 @@ def jps(name):
     """
     pat = re.sub(r'^(.)', r'^[^ ]*java .*[\1]', name)
     try:
-        output = check_output(['sudo', 'pgrep', '-f', pat])
+        output = check_output(['sudo', 'pgrep', '-f', pat]).decode('utf8')
     except CalledProcessError:
         return []
     return filter(None, map(str.strip, output.split('\n')))
@@ -333,7 +333,10 @@ def run_as(user, command, *args, **kwargs):
     env = read_etc_env()
     if 'env' in kwargs:
         env.update(kwargs['env'])
-    run = check_output if kwargs.get('capture_output') else check_call
+    if kwargs.get('capture_output'):
+        run = lambda *a, **kw: check_output(*a, **kw).decode('utf8')
+    else:
+        run = check_call
     try:
         stdin = None
         if 'input' in kwargs:
@@ -487,7 +490,7 @@ def wait_for_jps(process_name, timeout):
 
 
 def cpu_arch():
-    return subprocess.check_output(['uname', '-p']).strip()
+    return subprocess.check_output(['uname', '-p']).decode('utf8').strip()
 
 
 class verify_resources(object):

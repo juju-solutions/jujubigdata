@@ -145,8 +145,8 @@ class HadoopBase(object):
         env = utils.read_etc_env()
         java_installer = Path(jujuresources.resource_path('java-installer'))
         java_installer.chmod(0o755)
-        output = check_output([java_installer], env=env)
-        lines = map(str.strip, output.strip().split('\n'))
+        output = check_output([java_installer], env=env).decode('utf8')
+        lines = output.strip().splitlines()
         if len(lines) != 2:
             raise ValueError('Unexpected output from java-installer: %s' % output)
         java_home, java_version = lines
