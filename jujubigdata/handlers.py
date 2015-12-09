@@ -556,16 +556,24 @@ class YARN(object):
             if map_compression.lower() != "none":
                 props["mapreduce.map.output.compress"] = 'true'
                 props["mapreduce.map.output.compress.codec"] = "org.apache.hadoop.io.compress." + map_compression
+                maplogmsg = "True, using " + map_compression
             else:
                 props["mapreduce.map.output.compress"] = 'false'
                 props["mapreduce.map.output.compress.codec"] = "org.apache.hadoop.io.compress.DefaultCodec"
+                maplogmsg = "False"
 
             if reduce_compression.lower() != "none":
                 props["mapreduce.output.fileoutputformat.compress"] = 'true'
                 props["mapreduce.output.fileoutputformat.compress.codec"] = "org.apache.hadoop.io.compress." + reduce_compression
+                reducelogmsg = "True, using " + reduce_compression
             else:
                 props["mapreduce.output.fileoutputformat.compress"] = 'false'
                 props["mapreduce.output.fileoutputformat.compress.codec"] = "org.apache.hadoop.io.compress.DefaultCodec"
+                reducelogmsg = "False"
+            maplogmsg = "Intermediate (map output) compression: " + maplogmsg
+            reducelogmsg = "Output (reduce output) compression: " + reducelogmsg
+            hookenv.log(maplogmsg)
+            hookenv.log(reducelogmsg)
 
     def install_demo(self):
         if unitdata.kv().get('yarn.client.demo.installed'):
