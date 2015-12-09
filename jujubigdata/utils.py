@@ -286,7 +286,7 @@ def jps(name):
         output = check_output(['sudo', 'pgrep', '-f', pat]).decode('utf8')
     except CalledProcessError:
         return []
-    return filter(None, map(str.decode('utf8').strip, output.split('\n')))
+    return filter(None, output.strip().splitlines()
 
 
 class TimeoutError(Exception):
