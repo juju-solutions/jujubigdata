@@ -187,7 +187,7 @@ def re_edit_in_place(filename, subs, encoding='utf8'):
     """
     with Path(filename).in_place(encoding=encoding) as (reader, writer):
         for line in reader:
-            for pat, repl in subs.iteritems():
+            for pat, repl in subs.items():
                 line = re.sub(pat, repl, line)
             writer.write(line)
 
