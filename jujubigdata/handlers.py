@@ -255,6 +255,10 @@ class HadoopBase(object):
         for port in self.dist_config.exposed_ports(service):
             hookenv.open_port(port)
 
+    def close_ports(self, service):
+        for port in self.dist_config.exposed_ports(service):
+            hookenv.close_port(port)
+
 
 class HDFS(object):
     def __init__(self, hadoop_base):

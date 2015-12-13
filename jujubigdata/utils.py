@@ -437,6 +437,17 @@ def update_kv_host(ip, host):
     unit_kv.flush(True)
 
 
+def update_kv_hosts(ips_to_names):
+    unit_kv = unitdata.kv()
+
+    # store attrs in the kv as 'etc_host.<ip>'; kv.update will insert
+    # a new record or update any existing key with current data.
+    unit_kv.update(ips_to_names,
+                   prefix="etc_host.")
+    unit_kv.flush(True)
+
+
+
 def get_ssh_key(user):
     sshdir = Path('/home/%s/.ssh' % user)
     if not sshdir.exists():
@@ -520,3 +531,10 @@ class verify_resources(object):
                     ', '.join(missing),
                 ))
         return result
+
+
+def spec_matches(local_spec, remote_spec):
+    for k, v in local_spec.items():
+        if v != remote_spec.get(k):
+            return False
+    return True
