@@ -68,6 +68,7 @@ class HadoopBase(object):
 
         # Verify and fetch the required hadoop resources
         self.verify_resources = utils.verify_resources(*hadoop_resources)
+        self.verify_conditional_resources = self.verify_resources  # for backwards compat
 
     def spec(self):
         """
