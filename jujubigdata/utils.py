@@ -457,8 +457,8 @@ def remove_kv_hosts(*hosts):
     # find all IPs for the given host
     to_remove = [ip for ip, h in kv_hosts.items() if h in hosts]
     # remove all IPs for the given host
-    unit_kv.unset_range(to_remove,
-                        prefix="etc_host.")
+    unit_kv.unsetrange(to_remove,
+                       prefix="etc_host.")
     unit_kv.flush(True)
 
 
