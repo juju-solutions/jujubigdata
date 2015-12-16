@@ -430,23 +430,12 @@ def get_kv_hosts():
 def update_kv_host(ip, host):
     unit_kv = unitdata.kv()
 
-    remove_kv_host(host)  # ensure a given host only has one IP
+    remove_kv_hosts(host)  # ensure a given host only has one IP
 
     # store attrs in the kv as 'etc_host.<ip>'; kv.update will insert
     # a new record or update any existing key with current data.
     unit_kv.update({ip: host},
                    prefix="etc_host.")
-    unit_kv.flush(True)
-
-
-def remove_kv_host(host):
-    unit_kv = unitdata.kv()
-    hosts = get_kv_hosts()
-    # find all IPs for the given host
-    to_remove = [ip for ip, h in hosts.items() if h == host]
-    # remove all IPs for the given host
-    unit_kv.unset_range(to_remove,
-                        prefix="etc_host.")
     unit_kv.flush(True)
 
 
@@ -457,6 +446,19 @@ def update_kv_hosts(ips_to_names):
     # a new record or update any existing key with current data.
     unit_kv.update(ips_to_names,
                    prefix="etc_host.")
+    unit_kv.flush(True)
+
+
+def remove_kv_hosts(*hosts):
+    if len(hosts) == 1 and isinstance(hosts[0], (list, tuple)):
+        hosts = hosts[0]
+    unit_kv = unitdata.kv()
+    kv_hosts = get_kv_hosts()
+    # find all IPs for the given host
+    to_remove = [ip for ip, h in kv_hosts.items() if h in hosts]
+    # remove all IPs for the given host
+    unit_kv.unset_range(to_remove,
+                        prefix="etc_host.")
     unit_kv.flush(True)
 
 
