@@ -150,7 +150,10 @@ class HadoopBase(object):
         if len(lines) != 2:
             raise ValueError('Unexpected output from java-installer: %s' % output)
         java_home, java_version = lines
-        java_major, java_release = java_version.split("_")
+        if '_' in java_version:
+            java_major, java_release = java_version.split("_")
+        else:
+            java_major, java_release = java_version, ''
         unitdata.kv().set('java.home', java_home)
         unitdata.kv().set('java.version', java_major)
         unitdata.kv().set('java.version.release', java_release)
