@@ -17,7 +17,6 @@ from path import Path
 
 import jujuresources
 
-from charmhelpers.core import host
 from charmhelpers.core import hookenv
 from charmhelpers.core import unitdata
 
@@ -34,7 +33,7 @@ class HadoopBase(object):
     def __init__(self, dist_config):
         self.dist_config = dist_config
         self.charm_config = hookenv.config()
-        self.cpu_arch = host.cpu_arch()
+        self.cpu_arch = utils.cpu_arch()
         self.client_spec = {
             'hadoop': self.dist_config.hadoop_version,
         }
@@ -51,7 +50,7 @@ class HadoopBase(object):
                 ', '.join(missing_dirs)))
 
         # Build a list of hadoop resources needed from resources.yaml
-        hadoop_resources = []
+        hadoop_resources = ['java-installer']
         hadoop_version = self.dist_config.hadoop_version
         try:
             jujuresources.resource_path('hadoop-%s-%s' % (hadoop_version, self.cpu_arch))
@@ -68,7 +67,8 @@ class HadoopBase(object):
             pass
 
         # Verify and fetch the required hadoop resources
-        self.verify_conditional_resources = utils.verify_resources(*hadoop_resources)
+        self.verify_resources = utils.verify_resources(*hadoop_resources)
+        self.verify_conditional_resources = self.verify_resources  # for backwards compat
 
     def spec(self):
         """
@@ -255,6 +255,14 @@ class HadoopBase(object):
                             self.dist_config.path('hadoop') / command,
                             *args, **kwargs)
 
+    def open_ports(self, service):
+        for port in self.dist_config.exposed_ports(service):
+            hookenv.open_port(port)
+
+    def close_ports(self, service):
+        for port in self.dist_config.exposed_ports(service):
+            hookenv.close_port(port)
+
 
 class HDFS(object):
     def __init__(self, hadoop_base):
@@ -413,7 +421,7 @@ class HDFS(object):
         unitdata.kv().flush(True)
 
     def register_slaves(self, slaves=None):
-        if not slaves:  # FIXME hack-around until transition to layers is complete
+        if slaves is None:  # FIXME hack-around until transition to layers is complete
             slaves = helpers.all_ready_units('datanode')
             slaves = [data['hostname'] for slave, data in slaves]
         self.hadoop_base.register_slaves(slaves)
