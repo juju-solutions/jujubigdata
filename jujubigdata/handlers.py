@@ -363,8 +363,10 @@ class HDFS(object):
             # TODO: support SSL
             # props['dfs.datanode.https.address'] = '0.0.0.0:{}'.format(dc.port('dn_webapp_https'))
 
-    def configure_client(self):
-        self.configure_hdfs_base(*self._remote("namenode"))
+    def configure_client(self, host=None, port=None):
+        if not (host and port):
+            host, port = self._remote("namenode")
+        self.configure_hdfs_base(host, port)
 
     def configure_hdfs_base(self, host, port):
         dc = self.hadoop_base.dist_config
