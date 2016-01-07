@@ -78,19 +78,23 @@ class DistConfig(object):
                 port: <port>
                 exposed_on: <service>  # optional
     """
-    def __init__(self, filename='dist.yaml', required_keys=None):
-        self.yaml_file = filename
-        self.dist_config = yaml.load(Path(self.yaml_file).text())
+    def __init__(self, filename='dist.yaml', required_keys=None, data=None):
+        if data is None:
+            self.yaml_file = filename
+            self.dist_config = yaml.load(Path(self.yaml_file).text())
 
-        # validate dist.yaml
-        missing_keys = set(required_keys or []) - set(self.dist_config.keys())
-        if missing_keys:
-            raise ValueError('{} is missing required option{}: {}'.format(
-                filename,
-                's' if len(missing_keys) > 1 else '',
-                ', '.join(missing_keys)))
+            # validate dist.yaml
+            missing_keys = set(required_keys or []) - set(self.dist_config.keys())
+            if missing_keys:
+                raise ValueError('{} is missing required option{}: {}'.format(
+                    filename,
+                    's' if len(missing_keys) > 1 else '',
+                    ', '.join(missing_keys)))
+        else:
+            self.yaml_file = None
+            self.dist_config = data
 
-        for opt in required_keys:
+        for opt in self.dist_config.keys():
             setattr(self, opt, self.dist_config[opt])
 
     def path(self, key):
