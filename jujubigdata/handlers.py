@@ -379,11 +379,20 @@ class HDFS(object):
             props['hadoop.proxyuser.oozie.groups'] = '*'
             props['hadoop.proxyuser.oozie.hosts'] = '*'
             lzo_installed = unitdata.kv().get('hadoop.lzo.installed')
-            lzo_enabled = hookenv.config().get('compression') == 'lzo'
-            if lzo_installed and lzo_enabled:
-                props['io.compression.codecs'] = ('com.hadoop.compression.lzo.LzoCodec, '
+            if lzo_installed:
+                props['io.compression.codecs'] = ('org.apache.hadoop.io.compress.GzipCodec, '
+                                                  'org.apache.hadoop.io.compress.DefaultCodec, '
+                                                  'org.apache.hadoop.io.compress.BZip2Codec, '
+                                                  'org.apache.hadoop.io.compress.SnappyCodec, '
+                                                  'com.hadoop.compression.lzo.LzoCodec, '
                                                   'com.hadoop.compression.lzo.LzopCodec')
                 props['io.compression.codec.lzo.class'] = 'com.hadoop.compression.lzo.LzoCodec'
+            else:
+                props['io.compression.codecs'] = ('org.apache.hadoop.io.compress.GzipCodec, '
+                                                  'org.apache.hadoop.io.compress.DefaultCodec, '
+                                                  'org.apache.hadoop.io.compress.BZip2Codec, '
+                                                  'org.apache.hadoop.io.compress.SnappyCodec')
+
         hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             props['dfs.webhdfs.enabled'] = "true"
@@ -539,6 +548,8 @@ class YARN(object):
             if host and history_ipc:
                 props["mapreduce.jobhistory.address"] = "{}:{}".format(host, history_ipc)
             props["mapreduce.framework.name"] = 'yarn'
+            props["mapreduce.map.output.compress"] = 'true'
+            props["mapred.map.output.compress.codec"] = 'org.apache.hadoop.io.compress.SnappyCodec'
 
     def install_demo(self):
         if unitdata.kv().get('yarn.client.demo.installed'):
