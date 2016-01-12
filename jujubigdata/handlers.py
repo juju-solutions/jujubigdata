@@ -174,15 +174,16 @@ class HadoopBase(object):
                                   skip_top_level=True)
 
         # Install our lzo compression codec if it's defined in resources.yaml
-        try:
-            jujuresources.install('hadoop-lzo-%s' % self.cpu_arch,
-                                  destination=self.dist_config.path('hadoop'),
-                                  skip_top_level=False)
-            unitdata.kv().set('hadoop.lzo.installed', True)
-        except KeyError:
-            msg = ("The hadoop-lzo-%s resource was not found."
-                   "LZO compression will not be available." % self.cpu_arch)
-            hookenv.log(msg)
+        if hookenv.config().get('enable_lzo'):
+            try:
+                jujuresources.install('hadoop-lzo-%s' % self.cpu_arch,
+                                      destination=self.dist_config.path('hadoop'),
+                                      skip_top_level=False)
+                unitdata.kv().set('hadoop.lzo.installed', True)
+            except KeyError:
+                msg = ("The hadoop-lzo-%s resource was not found."
+                       "LZO compression will not be available." % self.cpu_arch)
+                hookenv.log(msg)
 
     def setup_hadoop_config(self):
         # copy default config into alternate dir
@@ -378,12 +379,21 @@ class HDFS(object):
             props['hadoop.proxyuser.hue.groups'] = "*"
             props['hadoop.proxyuser.oozie.groups'] = '*'
             props['hadoop.proxyuser.oozie.hosts'] = '*'
-            lzo_installed = unitdata.kv().get('hadoop.lzo.installed')
-            lzo_enabled = hookenv.config().get('compression') == 'lzo'
-            if lzo_installed and lzo_enabled:
-                props['io.compression.codecs'] = ('com.hadoop.compression.lzo.LzoCodec, '
+            lzo_installed = unitdata.kv().get('hadoop.lzo.installed') 
+            if lzo_installed:
+                props['io.compression.codecs'] = ('org.apache.hadoop.io.compress.GzipCodec, '
+                                                  'org.apache.hadoop.io.compress.DefaultCodec, '
+                                                  'org.apache.hadoop.io.compress.BZip2Codec, '
+                                                  'org.apache.hadoop.io.compress.SnappyCodec, '
+                                                  'com.hadoop.compression.lzo.LzoCodec, '
                                                   'com.hadoop.compression.lzo.LzopCodec')
                 props['io.compression.codec.lzo.class'] = 'com.hadoop.compression.lzo.LzoCodec'
+            else:
+                props['io.compression.codecs'] = ('org.apache.hadoop.io.compress.GzipCodec, '
+                                                  'org.apache.hadoop.io.compress.DefaultCodec, '
+                                                  'org.apache.hadoop.io.compress.BZip2Codec, '
+                                                  'org.apache.hadoop.io.compress.SnappyCodec')
+
         hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             props['dfs.webhdfs.enabled'] = "true"
@@ -525,6 +535,23 @@ class YARN(object):
         self.configure_yarn_base(host, port, history_http, history_ipc)
 
     def configure_yarn_base(self, host, port, history_http, history_ipc):
+        lzo_installed = unitdata.kv().get('hadoop.lzo.installed')
+        map_compression = hookenv.config().get('map_compression', 'SnappyCodec')
+        if map_compression not in ['SnappyCodec', 'BZip2Codec', 'GzipCodec', 'LzoCodec', 'None']:
+            hookenv.log("Intermediate compression config value invalid - check your config and remember case sensitivity")
+            hookenv.log("Defaulting to SnappyCodec for intermediate compression")
+            map_compression = "SnappyCodec"
+        if not lzo_installed and map_compression == "LzoCodec":
+            hookenv.log("Intermediate compression configured for LZO, but LZO is not installed; defaulting to SnappyCodec")
+            map_compression = "SnappyCodec"
+        reduce_compression = hookenv.config().get('reduce_compression', 'None')
+        if reduce_compression not in ['SnappyCodec', 'BZip2Codec', 'GzipCodec', 'LzoCodec', 'None']:
+            hookenv.log("Output compression config value invalid - check your config and remember case sensitivity")
+            hookenv.log("Defaulting to no compression for output compression")
+            reduce_compression = "none"
+        if not lzo_installed and reduce_compression == "LzoCodec":
+            hookenv.log("Output compression configured for LZO, but LZO is not installed; defaulting to no compression")
+            reduce_compression = "none"
         dc = self.hadoop_base.dist_config
         yarn_site = dc.path('hadoop_conf') / 'yarn-site.xml'
         with utils.xmlpropmap_edit_in_place(yarn_site) as props:
@@ -539,6 +566,27 @@ class YARN(object):
             if host and history_ipc:
                 props["mapreduce.jobhistory.address"] = "{}:{}".format(host, history_ipc)
             props["mapreduce.framework.name"] = 'yarn'
+            if map_compression.lower() != "none":
+                props["mapreduce.map.output.compress"] = 'true'
+                props["mapreduce.map.output.compress.codec"] = "org.apache.hadoop.io.compress." + map_compression
+                maplogmsg = "True, using " + map_compression
+            else:
+                props["mapreduce.map.output.compress"] = 'false'
+                props["mapreduce.map.output.compress.codec"] = "org.apache.hadoop.io.compress.DefaultCodec"
+                maplogmsg = "False"
+
+            if reduce_compression.lower() != "none":
+                props["mapreduce.output.fileoutputformat.compress"] = 'true'
+                props["mapreduce.output.fileoutputformat.compress.codec"] = "org.apache.hadoop.io.compress." + reduce_compression
+                reducelogmsg = "True, using " + reduce_compression
+            else:
+                props["mapreduce.output.fileoutputformat.compress"] = 'false'
+                props["mapreduce.output.fileoutputformat.compress.codec"] = "org.apache.hadoop.io.compress.DefaultCodec"
+                reducelogmsg = "False"
+            maplogmsg = "Intermediate (map output) compression: " + maplogmsg
+            reducelogmsg = "Output (reduce output) compression: " + reducelogmsg
+            hookenv.log(maplogmsg)
+            hookenv.log(reducelogmsg)
 
     def install_demo(self):
         if unitdata.kv().get('yarn.client.demo.installed'):
