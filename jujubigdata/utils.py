@@ -338,7 +338,8 @@ def run_as(user, command, *args, **kwargs):
     if 'env' in kwargs:
         env.update(kwargs['env'])
     if kwargs.get('capture_output'):
-        run = lambda *a, **kw: check_output(*a, **kw).decode('utf8')
+        def run(*a, **kw):
+            return check_output(*a, **kw).decode('utf8')
     else:
         run = check_call
     try:
