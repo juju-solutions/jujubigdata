@@ -215,11 +215,8 @@ class HadoopBase(object):
             env['HADOOP_MAPRED_HOME'] = self.dist_config.path('hadoop')
             env['HADOOP_MAPRED_LOG_DIR'] = self.dist_config.path('mapred_log_dir')
             env['HADOOP_YARN_HOME'] = self.dist_config.path('hadoop')
-            env['YARN_HOME'] = self.dist_config.path('hadoop')
             env['HADOOP_CONF_DIR'] = self.dist_config.path('hadoop_conf')
-            env['YARN_CONF_DIR'] = self.dist_config.path('hadoop_conf')
             env['YARN_LOG_DIR'] = self.dist_config.path('yarn_log_dir')
-            env['HDFS_LOG_DIR'] = self.dist_config.path('hdfs_log_dir')
             env['HADOOP_LOG_DIR'] = self.dist_config.path('hdfs_log_dir')
 
         hadoop_env = self.dist_config.path('hadoop_conf') / 'hadoop-env.sh'
