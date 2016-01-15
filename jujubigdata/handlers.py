@@ -41,7 +41,7 @@ class HadoopBase(object):
         # dist_config will have simple validation done on primary keys in the
         # dist.yaml, but we need to ensure deeper values are present.
         required_dirs = ['hadoop', 'hadoop_conf', 'hdfs_log_dir',
-                         'yarn_log_dir']
+                         'mapred_log_dir', 'yarn_log_dir']
         missing_dirs = set(required_dirs) - set(self.dist_config.dirs.keys())
         if missing_dirs:
             raise ValueError('dirs option in {} is missing required entr{}: {}'.format(
@@ -213,15 +213,11 @@ class HadoopBase(object):
             env['HADOOP_COMMON_HOME'] = self.dist_config.path('hadoop')
             env['HADOOP_HDFS_HOME'] = self.dist_config.path('hadoop')
             env['HADOOP_MAPRED_HOME'] = self.dist_config.path('hadoop')
+            env['HADOOP_MAPRED_LOG_DIR'] = self.dist_config.path('mapred_log_dir')
             env['HADOOP_YARN_HOME'] = self.dist_config.path('hadoop')
-            env['YARN_HOME'] = self.dist_config.path('hadoop')
             env['HADOOP_CONF_DIR'] = self.dist_config.path('hadoop_conf')
-            env['YARN_CONF_DIR'] = self.dist_config.path('hadoop_conf')
             env['YARN_LOG_DIR'] = self.dist_config.path('yarn_log_dir')
-            env['HDFS_LOG_DIR'] = self.dist_config.path('hdfs_log_dir')
-            env['HADOOP_LOG_DIR'] = self.dist_config.path('hdfs_log_dir')  # for hadoop 2.2.0 only
-            env['MAPRED_LOG_DIR'] = '/var/log/hadoop/mapred'  # should be moved to config, but could
-            env['MAPRED_PID_DIR'] = '/var/run/hadoop/mapred'  # be destructive for mapreduce operation
+            env['HADOOP_LOG_DIR'] = self.dist_config.path('hdfs_log_dir')
 
         hadoop_env = self.dist_config.path('hadoop_conf') / 'hadoop-env.sh'
         utils.re_edit_in_place(hadoop_env, {
@@ -520,6 +516,8 @@ class YARN(object):
             # 0.0.0.0 will listen on all interfaces, which is what we want on the server
             props["mapreduce.jobhistory.address"] = "0.0.0.0:{}".format(dc.port('jobhistory'))
             props["mapreduce.jobhistory.webapp.address"] = "0.0.0.0:{}".format(dc.port('jh_webapp_http'))
+            props["mapreduce.jobhistory.intermediate-done-dir"] = "/mr-history/tmp"
+            props["mapreduce.jobhistory.done-dir"] = "/mr-history/done"
 
     def configure_nodemanager(self, host=None, port=None, history_http=None, history_ipc=None):
         if not all([host, port, history_http, history_ipc]):
@@ -547,7 +545,11 @@ class YARN(object):
         with utils.xmlpropmap_edit_in_place(mapred_site) as props:
             if host and history_ipc:
                 props["mapreduce.jobhistory.address"] = "{}:{}".format(host, history_ipc)
+            if host and history_http:
+                props["mapreduce.jobhistory.webapp.address"] = "{}:{}".format(host, history_http)
             props["mapreduce.framework.name"] = 'yarn'
+            props["mapreduce.jobhistory.intermediate-done-dir"] = "/mr-history/tmp"
+            props["mapreduce.jobhistory.done-dir"] = "/mr-history/done"
             props["mapreduce.map.output.compress"] = 'true'
             props["mapred.map.output.compress.codec"] = 'org.apache.hadoop.io.compress.SnappyCodec'
 
