@@ -236,6 +236,20 @@ class HadoopBase(object):
         )
         slaves_file.chown('ubuntu', 'hadoop')
 
+    def configure_qjm(self, slaves):
+        """
+        Add slaves to QJM configuration
+
+        """
+        dc = self.hadoop_base.dist_config
+        hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
+        qjm_uri = 'qjournal://' + ':8485,'.join(slaves) + ':8485/hdfscluster'
+        with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
+            if slaves:
+                props['dfs.namenode.shared.edits.dir'] = qjm_uri
+            else:
+                props['dfs.namenode.shared.edits.dir'] = None
+
     def run(self, user, command, *args, **kwargs):
         """
         Run a Hadoop command as the `hdfs` user.
@@ -377,6 +391,14 @@ class HDFS(object):
             # TODO: support SSL
             # props['dfs.datanode.https.address'] = '0.0.0.0:{}'.format(dc.port('dn_webapp_https'))
 
+    def configure_journalnode(self, jn_http=8480, jn_https=None):
+        dc = self.hadoop_base.dist_config
+        hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
+        with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
+            props['dfs.journalnode.http-address'] = '0.0.0.0:{}'.format(dc.port('jn_http'))
+            if jn_https:
+                props['dfs.journalnode.https-address'] = '0.0.0.0:{}'.format(dc.port('jn_https'))
+
     def configure_client(self, host=None, port=None):
         if not (host and port):
             host, port = self._remote("namenode")
@@ -443,6 +465,12 @@ class HDFS(object):
         self._hdfs('dfs', '-chown', 'yarn', '/app-logs')
         unitdata.kv().set('hdfs.namenode.dirs.created', True)
         unitdata.kv().flush(True)
+
+    def configure_qjm(self, slaves=None):
+        if slaves is None:
+            slaves = helpers.all_ready_units('datanode')
+            slaves = [data['hostname'] for slave, data in slaves]
+        self.hadoop_base.configure_qjm(slaves)
 
     def register_slaves(self, slaves=None):
         if slaves is None:  # FIXME hack-around until transition to layers is complete
