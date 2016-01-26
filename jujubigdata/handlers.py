@@ -413,6 +413,7 @@ class HDFS(object):
     def configure_hdfs_base(self, host, port):
         dc = self.hadoop_base.dist_config
         core_site = dc.path('hadoop_conf') / 'core-site.xml'
+        clustername = 'hdfscluster'
         with utils.xmlpropmap_edit_in_place(core_site) as props:
             if host and port:
                 props['fs.defaultFS'] = "hdfs://{host}:{port}".format(host=host, port=port)
@@ -420,6 +421,7 @@ class HDFS(object):
             props['hadoop.proxyuser.hue.groups'] = "*"
             props['hadoop.proxyuser.oozie.groups'] = '*'
             props['hadoop.proxyuser.oozie.hosts'] = '*'
+            props['fs.defaultFS'] = 'hdfs://' + clustername
             if 'lzo' in self.hadoop_base.resources:
                 props['io.compression.codecs'] = ('org.apache.hadoop.io.compress.GzipCodec, '
                                                   'org.apache.hadoop.io.compress.DefaultCodec, '
@@ -436,6 +438,15 @@ class HDFS(object):
 
         hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
+            # Following values until comment end are for Hadoop HA
+            props['dfs.nameservices'] = clustername
+            # following to be set in peer relation hook:
+            # props['dfs.ha.namenodes.' + clustername] = namenode-n, namenode-n+1
+            props['dfs.client.failover.proxy.provider.mycluster'] = \
+                'org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider'
+            props['dfs.ha.fencing.methods'] = 'sshfence'
+            # this next line perhaps should not be hard coded
+            props['dfs.ha.fencing.ssh.private-key-files'] = '/home/hdfs/.ssh/id_rsa'
             props['dfs.webhdfs.enabled'] = "true"
             props['dfs.namenode.name.dir'] = dc.path('hdfs_dir_base') / 'cache/hadoop/dfs/name'
             props['dfs.datanode.data.dir'] = dc.path('hdfs_dir_base') / 'cache/hadoop/dfs/name'
