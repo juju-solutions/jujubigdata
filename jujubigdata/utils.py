@@ -134,13 +134,15 @@ class DistConfig(object):
         for group in self.groups:
             host.add_group(group)
         for username, details in self.users.items():
-            primary_group = None
+            primary_grp = None
+            secondary_grps = None
             groups = details.get('groups', [])
             if groups:
-                primary_group = groups[0]
-            host.adduser(username, group=primary_group)
-            for group in groups:
-                host.add_user_to_group(username, group)
+                primary_grp = groups[0]
+                secondary_grps = groups[1:]
+            hookenv.log('Creating user {0} in primary group {1} and secondary groups {2}'
+                        .format(username, primary_grp, secondary_grps))
+            host.adduser(username, primary_group=primary_grp, secondary_groups=secondary_grps)
 
     def remove_dirs(self):
         # TODO: no removal function exists in CH, just log what we would do.
@@ -165,7 +167,7 @@ def disable_firewall():
     """
     Temporarily disable the firewall, via ufw.
     """
-    status = check_output(['ufw', 'status'])
+    status = check_output(['ufw', 'status']).decode('utf8')
     already_disabled = 'inactive' in status
     if not already_disabled:
         check_call(['ufw', 'disable'])
@@ -176,14 +178,14 @@ def disable_firewall():
             check_call(['ufw', 'enable'])
 
 
-def re_edit_in_place(filename, subs):
+def re_edit_in_place(filename, subs, encoding='utf8'):
     """
     Perform a set of in-place edits to a file.
 
     :param str filename: Name of file to edit
     :param dict subs: Mapping of patterns to replacement strings
     """
-    with Path(filename).in_place() as (reader, writer):
+    with Path(filename).in_place(encoding=encoding) as (reader, writer):
         for line in reader:
             for pat, repl in subs.iteritems():
                 line = re.sub(pat, repl, line)
@@ -281,7 +283,7 @@ def jps(name):
     """
     pat = re.sub(r'^(.)', r'^[^ ]*java .*[\1]', name)
     try:
-        output = check_output(['sudo', 'pgrep', '-f', pat])
+        output = check_output(['sudo', 'pgrep', '-f', pat]).decode('utf8')
     except CalledProcessError:
         return []
     return filter(None, map(str.strip, output.split('\n')))
@@ -331,7 +333,10 @@ def run_as(user, command, *args, **kwargs):
     env = read_etc_env()
     if 'env' in kwargs:
         env.update(kwargs['env'])
-    run = check_output if kwargs.get('capture_output') else check_call
+    if kwargs.get('capture_output'):
+        run = lambda *a, **kw: check_output(*a, **kw).decode('utf8')
+    else:
+        run = check_call
     try:
         stdin = None
         if 'input' in kwargs:
@@ -485,7 +490,7 @@ def wait_for_jps(process_name, timeout):
 
 
 def cpu_arch():
-    return subprocess.check_output(['uname', '-p']).strip()
+    return subprocess.check_output(['uname', '-p']).decode('utf8').strip()
 
 
 class verify_resources(object):
