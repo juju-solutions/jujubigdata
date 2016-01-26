@@ -245,8 +245,7 @@ class HadoopBase(object):
         Add slaves to QJM configuration
 
         """
-        dc = self.hadoop_base.dist_config
-        hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
+        hdfs_site = self.dist_config.path('hadoop_conf') / 'hdfs-site.xml'
         qjm_uri = 'qjournal://' + ':8485,'.join(slaves) + ':8485/hdfscluster'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             if slaves:
@@ -306,6 +305,13 @@ class HDFS(object):
     def start_datanode(self):
         if not utils.jps('DataNode'):
             self._hadoop_daemon('start', 'datanode')
+
+    def stop_journalnode(self):
+        self._hadoop_daemon('stop', 'journalnode')
+    
+    def start_journalnode(self):
+        if not utils.jps('JournalNode'):
+            self._hadoop_daemon('start', 'journalnode')
 
     def _remote(self, relation):
         """
