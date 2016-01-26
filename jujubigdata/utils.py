@@ -78,19 +78,23 @@ class DistConfig(object):
                 port: <port>
                 exposed_on: <service>  # optional
     """
-    def __init__(self, filename='dist.yaml', required_keys=None):
-        self.yaml_file = filename
-        self.dist_config = yaml.load(Path(self.yaml_file).text())
+    def __init__(self, filename='dist.yaml', required_keys=None, data=None):
+        if data is None:
+            self.yaml_file = filename
+            self.dist_config = yaml.load(Path(self.yaml_file).text())
 
-        # validate dist.yaml
-        missing_keys = set(required_keys or []) - set(self.dist_config.keys())
-        if missing_keys:
-            raise ValueError('{} is missing required option{}: {}'.format(
-                filename,
-                's' if len(missing_keys) > 1 else '',
-                ', '.join(missing_keys)))
+            # validate dist.yaml
+            missing_keys = set(required_keys or []) - set(self.dist_config.keys())
+            if missing_keys:
+                raise ValueError('{} is missing required option{}: {}'.format(
+                    filename,
+                    's' if len(missing_keys) > 1 else '',
+                    ', '.join(missing_keys)))
+        else:
+            self.yaml_file = None
+            self.dist_config = data
 
-        for opt in required_keys:
+        for opt in self.dist_config.keys():
             setattr(self, opt, self.dist_config[opt])
 
     def path(self, key):
@@ -187,7 +191,7 @@ def re_edit_in_place(filename, subs, encoding='utf8'):
     """
     with Path(filename).in_place(encoding=encoding) as (reader, writer):
         for line in reader:
-            for pat, repl in subs.iteritems():
+            for pat, repl in subs.items():
                 line = re.sub(pat, repl, line)
             writer.write(line)
 
@@ -286,7 +290,7 @@ def jps(name):
         output = check_output(['sudo', 'pgrep', '-f', pat]).decode('utf8')
     except CalledProcessError:
         return []
-    return filter(None, map(str.strip, output.split('\n')))
+    return filter(None, output.strip().splitlines())
 
 
 class TimeoutError(Exception):
@@ -334,7 +338,8 @@ def run_as(user, command, *args, **kwargs):
     if 'env' in kwargs:
         env.update(kwargs['env'])
     if kwargs.get('capture_output'):
-        run = lambda *a, **kw: check_output(*a, **kw).decode('utf8')
+        def run(*a, **kw):
+            return check_output(*a, **kw).decode('utf8')
     else:
         run = check_call
     try:
@@ -424,17 +429,41 @@ def initialize_kv_host():
 
 
 def get_kv_hosts():
-    return unitdata.kv().getrange('etc_host.', strip=True)
+    return unitdata.kv().getrange('etc_host.', strip=True) or {}
 
 
 def update_kv_host(ip, host):
     unit_kv = unitdata.kv()
+
+    remove_kv_hosts(host)  # ensure a given host only has one IP
 
     # store attrs in the kv as 'etc_host.<ip>'; kv.update will insert
     # a new record or update any existing key with current data.
     unit_kv.update({ip: host},
                    prefix="etc_host.")
     unit_kv.flush(True)
+
+
+def update_kv_hosts(ips_to_names):
+    unit_kv = unitdata.kv()
+
+    # store attrs in the kv as 'etc_host.<ip>'; kv.update will insert
+    # a new record or update any existing key with current data.
+    unit_kv.update(ips_to_names,
+                   prefix="etc_host.")
+    unit_kv.flush(True)
+
+
+def remove_kv_hosts(*hosts):
+    if len(hosts) == 1 and isinstance(hosts[0], (list, tuple)):
+        hosts = hosts[0]
+    unit_kv = unitdata.kv()
+    kv_hosts = get_kv_hosts()
+    # remove all IPs for the given host(s)
+    for ip, h in kv_hosts.items():
+        if h in hosts:
+            unit_kv.unset('etc_host.{}'.format(ip))
+            unit_kv.flush(True)
 
 
 def get_ssh_key(user):
@@ -520,3 +549,10 @@ class verify_resources(object):
                     ', '.join(missing),
                 ))
         return result
+
+
+def spec_matches(local_spec, remote_spec):
+    for k, v in local_spec.items():
+        if v != remote_spec.get(k):
+            return False
+    return True

@@ -17,7 +17,6 @@ from path import Path
 
 import jujuresources
 
-from charmhelpers.core import host
 from charmhelpers.core import hookenv
 from charmhelpers.core import unitdata
 
@@ -34,7 +33,7 @@ class HadoopBase(object):
     def __init__(self, dist_config):
         self.dist_config = dist_config
         self.charm_config = hookenv.config()
-        self.cpu_arch = host.cpu_arch()
+        self.cpu_arch = utils.cpu_arch()
         self.client_spec = {
             'hadoop': self.dist_config.hadoop_version,
         }
@@ -42,7 +41,7 @@ class HadoopBase(object):
         # dist_config will have simple validation done on primary keys in the
         # dist.yaml, but we need to ensure deeper values are present.
         required_dirs = ['hadoop', 'hadoop_conf', 'hdfs_log_dir',
-                         'yarn_log_dir']
+                         'mapred_log_dir', 'yarn_log_dir']
         missing_dirs = set(required_dirs) - set(self.dist_config.dirs.keys())
         if missing_dirs:
             raise ValueError('dirs option in {} is missing required entr{}: {}'.format(
@@ -51,7 +50,7 @@ class HadoopBase(object):
                 ', '.join(missing_dirs)))
 
         # Build a list of hadoop resources needed from resources.yaml
-        hadoop_resources = []
+        hadoop_resources = ['java-installer']
         hadoop_version = self.dist_config.hadoop_version
         try:
             jujuresources.resource_path('hadoop-%s-%s' % (hadoop_version, self.cpu_arch))
@@ -68,7 +67,8 @@ class HadoopBase(object):
             pass
 
         # Verify and fetch the required hadoop resources
-        self.verify_conditional_resources = utils.verify_resources(*hadoop_resources)
+        self.verify_resources = utils.verify_resources(*hadoop_resources)
+        self.verify_conditional_resources = self.verify_resources  # for backwards compat
 
     def spec(self):
         """
@@ -150,7 +150,10 @@ class HadoopBase(object):
         if len(lines) != 2:
             raise ValueError('Unexpected output from java-installer: %s' % output)
         java_home, java_version = lines
-        java_major, java_release = java_version.split("_")
+        if '_' in java_version:
+            java_major, java_release = java_version.split("_")
+        else:
+            java_major, java_release = java_version, ''
         unitdata.kv().set('java.home', java_home)
         unitdata.kv().set('java.version', java_major)
         unitdata.kv().set('java.version.release', java_release)
@@ -210,15 +213,11 @@ class HadoopBase(object):
             env['HADOOP_COMMON_HOME'] = self.dist_config.path('hadoop')
             env['HADOOP_HDFS_HOME'] = self.dist_config.path('hadoop')
             env['HADOOP_MAPRED_HOME'] = self.dist_config.path('hadoop')
+            env['HADOOP_MAPRED_LOG_DIR'] = self.dist_config.path('mapred_log_dir')
             env['HADOOP_YARN_HOME'] = self.dist_config.path('hadoop')
-            env['YARN_HOME'] = self.dist_config.path('hadoop')
             env['HADOOP_CONF_DIR'] = self.dist_config.path('hadoop_conf')
-            env['YARN_CONF_DIR'] = self.dist_config.path('hadoop_conf')
             env['YARN_LOG_DIR'] = self.dist_config.path('yarn_log_dir')
-            env['HDFS_LOG_DIR'] = self.dist_config.path('hdfs_log_dir')
-            env['HADOOP_LOG_DIR'] = self.dist_config.path('hdfs_log_dir')  # for hadoop 2.2.0 only
-            env['MAPRED_LOG_DIR'] = '/var/log/hadoop/mapred'  # should be moved to config, but could
-            env['MAPRED_PID_DIR'] = '/var/run/hadoop/mapred'  # be destructive for mapreduce operation
+            env['HADOOP_LOG_DIR'] = self.dist_config.path('hdfs_log_dir')
 
         hadoop_env = self.dist_config.path('hadoop_conf') / 'hadoop-env.sh'
         utils.re_edit_in_place(hadoop_env, {
@@ -251,6 +250,14 @@ class HadoopBase(object):
         return utils.run_as(user,
                             self.dist_config.path('hadoop') / command,
                             *args, **kwargs)
+
+    def open_ports(self, service):
+        for port in self.dist_config.exposed_ports(service):
+            hookenv.open_port(port)
+
+    def close_ports(self, service):
+        for port in self.dist_config.exposed_ports(service):
+            hookenv.close_port(port)
 
 
 class HDFS(object):
@@ -352,8 +359,10 @@ class HDFS(object):
             # TODO: support SSL
             # props['dfs.datanode.https.address'] = '0.0.0.0:{}'.format(dc.port('dn_webapp_https'))
 
-    def configure_client(self):
-        self.configure_hdfs_base(*self._remote("namenode"))
+    def configure_client(self, host=None, port=None):
+        if not (host and port):
+            host, port = self._remote("namenode")
+        self.configure_hdfs_base(host, port)
 
     def configure_hdfs_base(self, host, port):
         dc = self.hadoop_base.dist_config
@@ -366,11 +375,20 @@ class HDFS(object):
             props['hadoop.proxyuser.oozie.groups'] = '*'
             props['hadoop.proxyuser.oozie.hosts'] = '*'
             lzo_installed = unitdata.kv().get('hadoop.lzo.installed')
-            lzo_enabled = hookenv.config().get('compression') == 'lzo'
-            if lzo_installed and lzo_enabled:
-                props['io.compression.codecs'] = ('com.hadoop.compression.lzo.LzoCodec, '
+            if lzo_installed:
+                props['io.compression.codecs'] = ('org.apache.hadoop.io.compress.GzipCodec, '
+                                                  'org.apache.hadoop.io.compress.DefaultCodec, '
+                                                  'org.apache.hadoop.io.compress.BZip2Codec, '
+                                                  'org.apache.hadoop.io.compress.SnappyCodec, '
+                                                  'com.hadoop.compression.lzo.LzoCodec, '
                                                   'com.hadoop.compression.lzo.LzopCodec')
                 props['io.compression.codec.lzo.class'] = 'com.hadoop.compression.lzo.LzoCodec'
+            else:
+                props['io.compression.codecs'] = ('org.apache.hadoop.io.compress.GzipCodec, '
+                                                  'org.apache.hadoop.io.compress.DefaultCodec, '
+                                                  'org.apache.hadoop.io.compress.BZip2Codec, '
+                                                  'org.apache.hadoop.io.compress.SnappyCodec')
+
         hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             props['dfs.webhdfs.enabled'] = "true"
@@ -410,7 +428,7 @@ class HDFS(object):
         unitdata.kv().flush(True)
 
     def register_slaves(self, slaves=None):
-        if not slaves:  # FIXME hack-around until transition to layers is complete
+        if slaves is None:  # FIXME hack-around until transition to layers is complete
             slaves = helpers.all_ready_units('datanode')
             slaves = [data['hostname'] for slave, data in slaves]
         self.hadoop_base.register_slaves(slaves)
@@ -498,6 +516,8 @@ class YARN(object):
             # 0.0.0.0 will listen on all interfaces, which is what we want on the server
             props["mapreduce.jobhistory.address"] = "0.0.0.0:{}".format(dc.port('jobhistory'))
             props["mapreduce.jobhistory.webapp.address"] = "0.0.0.0:{}".format(dc.port('jh_webapp_http'))
+            props["mapreduce.jobhistory.intermediate-done-dir"] = "/mr-history/tmp"
+            props["mapreduce.jobhistory.done-dir"] = "/mr-history/done"
 
     def configure_nodemanager(self, host=None, port=None, history_http=None, history_ipc=None):
         if not all([host, port, history_http, history_ipc]):
@@ -525,7 +545,13 @@ class YARN(object):
         with utils.xmlpropmap_edit_in_place(mapred_site) as props:
             if host and history_ipc:
                 props["mapreduce.jobhistory.address"] = "{}:{}".format(host, history_ipc)
+            if host and history_http:
+                props["mapreduce.jobhistory.webapp.address"] = "{}:{}".format(host, history_http)
             props["mapreduce.framework.name"] = 'yarn'
+            props["mapreduce.jobhistory.intermediate-done-dir"] = "/mr-history/tmp"
+            props["mapreduce.jobhistory.done-dir"] = "/mr-history/done"
+            props["mapreduce.map.output.compress"] = 'true'
+            props["mapred.map.output.compress.codec"] = 'org.apache.hadoop.io.compress.SnappyCodec'
 
     def install_demo(self):
         if unitdata.kv().get('yarn.client.demo.installed'):

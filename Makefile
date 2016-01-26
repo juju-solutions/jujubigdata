@@ -60,6 +60,7 @@ docrelease: docs
 
 .PHONY: release
 release: docs
+	git remote | xargs -L1 git fetch --tags
 	scripts/update-rev
 	.tox/docs/bin/python setup.py register sdist upload upload_docs
 	git tag release-${VERSION}
