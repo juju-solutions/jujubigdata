@@ -421,7 +421,7 @@ class HDFS(object):
             props['hadoop.proxyuser.hue.groups'] = "*"
             props['hadoop.proxyuser.oozie.groups'] = '*'
             props['hadoop.proxyuser.oozie.hosts'] = '*'
-            props['fs.defaultFS'] = 'hdfs://' + clustername
+            #props['fs.defaultFS'] = 'hdfs://' + clustername
             if 'lzo' in self.hadoop_base.resources:
                 props['io.compression.codecs'] = ('org.apache.hadoop.io.compress.GzipCodec, '
                                                   'org.apache.hadoop.io.compress.DefaultCodec, '
