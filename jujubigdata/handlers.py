@@ -242,7 +242,7 @@ class HadoopBase(object):
 
         """
         hdfs_site = self.dist_config.path('hadoop_conf') / 'hdfs-site.xml'
-        qjm_uri = 'qjournal://' + ':8485,'.join(slaves) + ':8485/hdfscluster'
+        qjm_uri = 'qjournal://' + ':8485;'.join(slaves) + ':8485/hdfscluster'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             if slaves:
                 props['dfs.namenode.shared.edits.dir'] = qjm_uri
