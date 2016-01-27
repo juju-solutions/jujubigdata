@@ -526,9 +526,6 @@ class YARN(object):
             props["mapreduce.jobhistory.webapp.address"] = "0.0.0.0:{}".format(dc.port('jh_webapp_http'))
             props["mapreduce.jobhistory.intermediate-done-dir"] = "/mr-history/tmp"
             props["mapreduce.jobhistory.done-dir"] = "/mr-history/done"
-            props["mapreduce.application.classpath"] = "$HADOOP_HOME/share/hadoop/mapreduce/*,\
-                $HADOOP_HOME/share/hadoop/mapreduce/lib/*,\
-                $HADOOP_HOME/share/hadoop/tools/lib/*"
 
     def configure_nodemanager(self, host=None, port=None, history_http=None, history_ipc=None):
         if not all([host, port, history_http, history_ipc]):
@@ -563,6 +560,10 @@ class YARN(object):
             props["mapreduce.jobhistory.done-dir"] = "/mr-history/done"
             props["mapreduce.map.output.compress"] = 'true'
             props["mapred.map.output.compress.codec"] = 'org.apache.hadoop.io.compress.SnappyCodec'
+            props["mapreduce.application.classpath"] = "$HADOOP_HOME/share/hadoop/mapreduce/*,\
+                $HADOOP_HOME/share/hadoop/mapreduce/lib/*,\
+                $HADOOP_HOME/share/hadoop/tools/lib/*"
+
 
     def install_demo(self):
         if unitdata.kv().get('yarn.client.demo.installed'):
