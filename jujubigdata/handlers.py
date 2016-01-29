@@ -560,6 +560,10 @@ class YARN(object):
             props["mapreduce.jobhistory.done-dir"] = "/mr-history/done"
             props["mapreduce.map.output.compress"] = 'true'
             props["mapred.map.output.compress.codec"] = 'org.apache.hadoop.io.compress.SnappyCodec'
+            props["mapreduce.application.classpath"] = "$HADOOP_HOME/share/hadoop/mapreduce/*,\
+                $HADOOP_HOME/share/hadoop/mapreduce/lib/*,\
+                $HADOOP_HOME/share/hadoop/tools/lib/*"
+
 
     def install_demo(self):
         if unitdata.kv().get('yarn.client.demo.installed'):
