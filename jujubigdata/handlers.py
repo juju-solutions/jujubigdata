@@ -563,7 +563,6 @@ class YARN(object):
                 $HADOOP_HOME/share/hadoop/mapreduce/lib/*,\
                 $HADOOP_HOME/share/hadoop/tools/lib/*"
 
-
     def install_demo(self):
         if unitdata.kv().get('yarn.client.demo.installed'):
             return
