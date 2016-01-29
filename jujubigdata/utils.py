@@ -358,11 +358,13 @@ def update_etc_hosts(ips_to_names):
     '''
     Update /etc/hosts given a mapping of managed IP / hostname pairs.
 
+    Note, you should not use this directly.  Instead, use :func:`update_kv_hosts`
+    and :func:`manage_etc_hosts`.
+
     :param dict ips_to_names: mapping of IPs to hostnames (must be one-to-one)
     '''
     etc_hosts = Path('/etc/hosts')
     hosts_contents = etc_hosts.lines()
-    comment_pat = re.compile(r'^\s*#?\s*([^#]*)\s*#.*$')
     IP_pat = re.compile(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}')
 
     new_lines = []
@@ -371,13 +373,6 @@ def update_etc_hosts(ips_to_names):
         if '# JUJU MANAGED' not in line:
             # pass-thru unmanaged lines unchanged
             new_lines.append(line)
-        else:
-            # record existing managed entries
-            # managed is inverted (name-to-ip) because, while it's ok to have
-            # multiple hosts resolve to the same IP, having multiple IPs for
-            # the same host can be problematic
-            ip, name = comment_pat.sub(r'\1', line).split(None, 2)
-            managed[name] = ip
     # add or update new hosts
     managed.update({name: ip for ip, name in ips_to_names.items()})
 

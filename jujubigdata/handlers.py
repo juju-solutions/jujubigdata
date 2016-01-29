@@ -300,7 +300,6 @@ class HDFS(object):
         if not utils.jps('JournalNode'):
             self._hadoop_daemon('start', 'journalnode')
 
-
     def _remote(self, relation):
         """
         Return the hostname of the unit on the other end of the given
