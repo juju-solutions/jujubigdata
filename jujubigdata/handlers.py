@@ -577,7 +577,7 @@ class YARN(object):
         unitdata.kv().flush(True)
 
     def register_slaves(self, slaves=None):
-        if not slaves:  # FIXME hack-around until transition to layers is complete
+        if slaves is None:  # FIXME hack-around until transition to layers is complete
             slaves = helpers.all_ready_units('nodemanager')
             slaves = [data['hostname'] for slave, data in slaves]
         self.hadoop_base.register_slaves(slaves)
