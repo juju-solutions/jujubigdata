@@ -116,7 +116,8 @@ class HadoopBase(object):
         """
         local_ip = utils.resolve_private_address(hookenv.unit_get('private-address'))
         hostname = hookenv.local_unit().replace('/', '-')
-        utils.update_etc_hosts({local_ip: hostname})
+        utils.update_kv_hosts({local_ip: hostname})
+        utils.manage_etc_hosts()
 
         # update name of host to more semantically meaningful value
         # (this is required on some providers; the /etc/hosts entry must match
