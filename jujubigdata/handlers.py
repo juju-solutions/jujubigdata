@@ -403,6 +403,9 @@ class HDFS(object):
     def init_sharededits(self):
         self._hdfs('namenode', '-initializeSharedEdits', '-noninteractive')
 
+    def bootstrap_standby(self):
+        self._hdfs('namenode', '-bootstrapStandby', '-noninteractive', '-skipSharedEditsCheck')
+
     def format_namenode(self):
         if unitdata.kv().get('hdfs.namenode.formatted'):
             return
