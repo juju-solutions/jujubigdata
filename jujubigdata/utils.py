@@ -94,6 +94,8 @@ class DistConfig(object):
             self.yaml_file = None
             self.dist_config = data
 
+        self.groups = []
+        self.users = {}
         for opt in self.dist_config.keys():
             setattr(self, opt, self.dist_config[opt])
 
