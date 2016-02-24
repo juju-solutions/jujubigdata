@@ -383,7 +383,7 @@ class HDFS(object):
                                                   'org.apache.hadoop.io.compress.DefaultCodec, '
                                                   'org.apache.hadoop.io.compress.BZip2Codec, '
                                                   'org.apache.hadoop.io.compress.SnappyCodec')
-            props['fs.defaultFS'] = "hdfs://{clustername}:{port}".format(clustername=clustername, port=port)
+            props['fs.defaultFS'] = "hdfs://{clustername}".format(clustername=clustername, port=port)
         hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             props['dfs.webhdfs.enabled'] = "true"
