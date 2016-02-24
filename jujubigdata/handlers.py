@@ -401,10 +401,10 @@ class HDFS(object):
                 props['dfs.namenode.http-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, webhdfs_port)
 
     def init_sharededits(self):
-        self._hdfs('namenode', '-initializeSharedEdits', '-noninteractive')
+        self._hdfs('namenode', '-initializeSharedEdits', '-nonInteractive')
 
     def bootstrap_standby(self):
-        self._hdfs('namenode', '-bootstrapStandby', '-noninteractive', '-skipSharedEditsCheck')
+        self._hdfs('namenode', '-bootstrapStandby', '-nonInteractive', '-skipSharedEditsCheck')
 
     def transition_to_active(self, serviceid):
         self._hdfs('haadmin', '-transitionToActive', serviceid)
