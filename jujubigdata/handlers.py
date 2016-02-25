@@ -418,7 +418,7 @@ class HDFS(object):
         if len(namenodes) == 2:
             output = []
             for host in namenodes:
-                output.append(utils.run_as('hdfs', 'hdfs', 'haadmin', '-getServiceState {}'.format(leader), capture_output=True).lower())
+                output.append(utils.run_as('hdfs', 'hdfs', 'haadmin', '-getServiceState', '{}'.format(leader), capture_output=True).lower())
             if not 'active' in output:
                 self.transition_to_active(leader)
 
