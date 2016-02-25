@@ -404,10 +404,23 @@ class HDFS(object):
         self._hdfs('namenode', '-initializeSharedEdits', '-nonInteractive')
 
     def bootstrap_standby(self):
-        self._hdfs('namenode', '-bootstrapStandby', '-nonInteractive', '-skipSharedEditsCheck')
+        self._hdfs('namenode', '-bootstrapStandby', '-nonInteractive')
 
     def transition_to_active(self, serviceid):
         self._hdfs('haadmin', '-transitionToActive', serviceid)
+
+    def ensure_HA_active(self, namenodes, leader):
+        '''
+        Function to ensure one namenode in an HA Initialized cluster is
+        in active and one is in standby in the absence of zookeeper
+        to handle automatic failover
+        '''
+        if len(namenodes) == 2:
+            output = []
+            for host in namenodes:
+                output.append(utils.run_as('hdfs', 'hdfs', 'haadmin', '-getServiceState {}'.format(leader), capture_output=True).lower())
+            if not 'active' in output:
+                self.transition_to_active(leader)
 
     def format_namenode(self):
         if unitdata.kv().get('hdfs.namenode.formatted'):
