@@ -404,7 +404,7 @@ class HDFS(object):
         self._hdfs('namenode', '-initializeSharedEdits', '-nonInteractive')
 
     def bootstrap_standby(self):
-        self._hdfs('namenode', '-bootstrapStandby', '-nonInteractive')
+        self._hdfs('namenode', '-bootstrapStandby', '-nonInteractive', '-force')
 
     def transition_to_active(self, serviceid):
         self._hdfs('haadmin', '-transitionToActive', serviceid)
