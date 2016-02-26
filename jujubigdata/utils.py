@@ -441,6 +441,10 @@ def resolve_private_address(addr):
         return contained.groups(0).replace('-', '.')
 
 
+def check_peer_hdfs(peer_ip, hdfs_port):
+    import socket
+    sock = socket
+
 def initialize_kv_host():
     # get the hostname attrs from our local unit and update the kv store
     local_ip = resolve_private_address(hookenv.unit_private_ip())
@@ -589,3 +593,4 @@ def spec_matches(local_spec, remote_spec):
         if v != remote_spec.get(k):
             return False
     return True
+
