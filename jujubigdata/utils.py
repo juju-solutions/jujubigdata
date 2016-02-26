@@ -443,7 +443,13 @@ def resolve_private_address(addr):
 
 def check_peer_hdfs(peer_ip, hdfs_port):
     import socket
-    sock = socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    result = sock.connect_ex((peer_ip, hdfs_port))
+    if result == 0:
+        return True
+    else:
+        return False
+
 
 def initialize_kv_host():
     # get the hostname attrs from our local unit and update the kv store
