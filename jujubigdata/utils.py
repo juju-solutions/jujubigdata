@@ -441,10 +441,10 @@ def resolve_private_address(addr):
         return contained.groups(0).replace('-', '.')
 
 
-def check_peer_hdfs(peer_ip, hdfs_port):
+def check_peer_port(peer_ip, port):
     import socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    result = sock.connect_ex((peer_ip, hdfs_port))
+    result = sock.connect_ex((peer_ip, port))
     if result == 0:
         return True
     else:
