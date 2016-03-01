@@ -50,24 +50,23 @@ class HadoopBase(object):
                 ', '.join(missing_dirs)))
 
         # Build a list of hadoop resources needed from resources.yaml
-        hadoop_resources = ['java-installer']
+        self.resources = {
+            'java-installer': 'java-installer',
+            'hadoop': 'hadoop-%s' % (self.cpu_arch),
+        }
         hadoop_version = self.dist_config.hadoop_version
-        try:
-            jujuresources.resource_path('hadoop-%s-%s' % (hadoop_version, self.cpu_arch))
-            hadoop_resources.append('hadoop-%s-%s' % (hadoop_version, self.cpu_arch))
-        except KeyError:
-            hadoop_resources.append('hadoop-%s' % (self.cpu_arch))
+        versioned_res = 'hadoop-%s-%s' % (hadoop_version, self.cpu_arch)
+        if jujuresources.resource_defined(versioned_res):
+            self.resources['hadoop'] = versioned_res
 
         # LZO compression for hadoop is distributed separately. Add it to the
         # list of reqs if defined in resources.yaml
-        try:
-            jujuresources.resource_path('hadoop-lzo-%s' % self.cpu_arch)
-            hadoop_resources.append('hadoop-lzo-%s' % (self.cpu_arch))
-        except KeyError:
-            pass
+        lzo_res = 'hadoop-lzo-%s' % self.cpu_arch
+        if jujuresources.resource_defined(lzo_res):
+            self.resources['lzo'] = lzo_res
 
         # Verify and fetch the required hadoop resources
-        self.verify_resources = utils.verify_resources(*hadoop_resources)
+        self.verify_resources = utils.verify_resources(*self.resources.values())
         self.verify_conditional_resources = self.verify_resources  # for backwards compat
 
     def spec(self):
@@ -160,27 +159,16 @@ class HadoopBase(object):
         unitdata.kv().set('java.version.release', java_release)
 
     def install_hadoop(self):
-        hadoop_version = self.dist_config.hadoop_version
-        try:
-            jujuresources.install('hadoop-%s-%s' %
-                                  (hadoop_version,
-                                   self.cpu_arch),
-                                  destination=self.dist_config.path('hadoop'),
-                                  skip_top_level=True)
-        except KeyError:
-            hookenv.log("Falling back to non-version specific download of hadoop...")
-            jujuresources.install('hadoop-%s' %
-                                  (self.cpu_arch),
-                                  destination=self.dist_config.path('hadoop'),
-                                  skip_top_level=True)
+        jujuresources.install(self.resources['hadoop'],
+                              destination=self.dist_config.path('hadoop'),
+                              skip_top_level=True)
 
         # Install our lzo compression codec if it's defined in resources.yaml
-        try:
-            jujuresources.install('hadoop-lzo-%s' % self.cpu_arch,
+        if 'lzo' in self.resources:
+            jujuresources.install(self.resources['lzo'],
                                   destination=self.dist_config.path('hadoop'),
                                   skip_top_level=False)
-            unitdata.kv().set('hadoop.lzo.installed', True)
-        except KeyError:
+        else:
             msg = ("The hadoop-lzo-%s resource was not found."
                    "LZO compression will not be available." % self.cpu_arch)
             hookenv.log(msg)
@@ -382,8 +370,7 @@ class HDFS(object):
             props['hadoop.proxyuser.hue.groups'] = "*"
             props['hadoop.proxyuser.oozie.groups'] = '*'
             props['hadoop.proxyuser.oozie.hosts'] = '*'
-            lzo_installed = unitdata.kv().get('hadoop.lzo.installed')
-            if lzo_installed:
+            if 'lzo' in self.hadoop_base.resources:
                 props['io.compression.codecs'] = ('org.apache.hadoop.io.compress.GzipCodec, '
                                                   'org.apache.hadoop.io.compress.DefaultCodec, '
                                                   'org.apache.hadoop.io.compress.BZip2Codec, '
