@@ -444,7 +444,7 @@ def resolve_private_address(addr):
 def check_peer_port(peer_ip, port):
     import socket
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    result = sock.connect_ex((peer_ip, port))
+    result = sock.connect_ex((peer_ip, int(port)))
     if result == 0:
         return True
     else:
