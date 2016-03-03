@@ -426,7 +426,7 @@ def initialize_kv_host():
 
 
 def get_kv_hosts():
-    return unitdata.kv().getrange('etc_host.', strip=True) or {}
+    return unitdata.kv().getrange('etc_host.', strip=True)
 
 
 def update_kv_host(ip, host):
@@ -456,11 +456,12 @@ def remove_kv_hosts(*hosts):
         hosts = hosts[0]
     unit_kv = unitdata.kv()
     kv_hosts = get_kv_hosts()
-    # remove all IPs for the given host(s)
-    for ip, h in kv_hosts.items():
-        if h in hosts:
-            unit_kv.unset('etc_host.{}'.format(ip))
-            unit_kv.flush(True)
+    # find all IPs for the given host
+    to_remove = [ip for ip, h in kv_hosts.items() if h in hosts]
+    # remove all IPs for the given host
+    unit_kv.unsetrange(to_remove,
+                       prefix="etc_host.")
+    unit_kv.flush(True)
 
 
 def get_ssh_key(user):
