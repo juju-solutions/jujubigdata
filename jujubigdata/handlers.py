@@ -440,6 +440,9 @@ class HDFS(object):
         hookenv.log("create_hdfs_dirs starts...")
         if unitdata.kv().get('hdfs.namenode.dirs.created'):
             return
+        if self._hdfs('dfs', 'stat', '/tmp'):
+            hookenv.log("HDFS /tmp already exists, not creating dirs.")
+            return
         hookenv.log("Creating HDFS Data dirs...")
         self._hdfs('dfs', '-mkdir', '-p', '/tmp/hadoop/mapred/staging')
         self._hdfs('dfs', '-chmod', '-R', '1777', '/tmp/hadoop/mapred/staging')
