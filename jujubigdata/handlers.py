@@ -418,7 +418,7 @@ class HDFS(object):
         '''
         hookenv.log("ensure HA active function:")
         hookenv.log(str(namenodes) + ", " + str(leader))
-        hookenv.log(str(len(namenodes))
+        hookenv.log(str(len(namenodes)))
         if len(namenodes) == 2:
             output = []
             for host in namenodes:
