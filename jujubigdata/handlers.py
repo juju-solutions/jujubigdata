@@ -407,6 +407,7 @@ class HDFS(object):
         self._hdfs('namenode', '-bootstrapStandby', '-nonInteractive', '-force')
 
     def transition_to_active(self, serviceid):
+        hookenv.log("Transitioning to active: " + str(serviceid))
         self._hdfs('haadmin', '-transitionToActive', serviceid)
 
     def ensure_HA_active(self, namenodes, leader):
@@ -415,6 +416,9 @@ class HDFS(object):
         in active and one is in standby in the absence of zookeeper
         to handle automatic failover
         '''
+        hookenv.log("ensure HA active function:")
+        hookenv.log(str(namenodes) + ", " + str(leader))
+        hookenv.log(str(len(namenodes))
         if len(namenodes) == 2:
             output = []
             for host in namenodes:
