@@ -452,10 +452,11 @@ def check_peer_port(peer_ip, port):
 
 
 def ha_node_state(host):
-    output = run_as('hdfs', 'hdfs', 'haadmin', '-getServiceState', host, capture_output=True)
-    return output
-    #except CalledProcessError as e:
-    #    output = e.output  # probably a "connection refused"; wait and try again
+    try:
+        output = run_as('hdfs', 'hdfs', 'haadmin', '-getServiceState', host, capture_output=True)
+        return output
+    except CalledProcessError as e:
+        output = e.output  # probably a "connection refused"; wait and try again
 
 
 def initialize_kv_host():
