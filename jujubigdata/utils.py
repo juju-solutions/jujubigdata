@@ -451,6 +451,13 @@ def check_peer_port(peer_ip, port):
         return False
 
 
+def ha_node_state(host):
+    output = run_as('hdfs', 'hdfs', 'haadmin', '-getServiceState', host, capture_output=True)
+    return output
+    #except CalledProcessError as e:
+    #    output = e.output  # probably a "connection refused"; wait and try again
+
+
 def initialize_kv_host():
     # get the hostname attrs from our local unit and update the kv store
     local_ip = resolve_private_address(hookenv.unit_private_ip())
