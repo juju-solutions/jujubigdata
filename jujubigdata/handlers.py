@@ -276,6 +276,17 @@ class HDFS(object):
         time.sleep(30)
         self.start_namenode()
 
+    def restart_dfs(self):
+        self.stop_dfs()
+        time.sleep(30)
+        self.start_dfs()
+
+    def stop_dfs(self):
+        self.hadoop_base.run('hdfs', 'sbin/stop-dfs.sh')
+
+    def start_dfs(self):
+        self.hadoop_base.run('hdfs', 'sbin/start-dfs.sh')
+
     def stop_secondarynamenode(self):
         self._hadoop_daemon('stop', 'secondarynamenode')
 
@@ -332,7 +343,7 @@ class HDFS(object):
         host = unit.replace('/', '-')
         return host, data['port']
 
-    def configure_namenode(self, namenodes):
+    def configure_namenode(self, namenodes, zookeepers="None"):
         dc = self.hadoop_base.dist_config
         clustername = hookenv.service_name()
         host = hookenv.local_unit().replace('/', '-')
@@ -344,6 +355,10 @@ class HDFS(object):
             props['dfs.blocksize'] = int(cfg['dfs_blocksize'])
             props['dfs.namenode.datanode.registration.ip-hostname-check'] = 'true'
             props['dfs.namenode.http-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, dc.port('nn_webapp_http'))
+            if zookeepers:
+                props['dfs.ha.automatic-failover.enabled'] = 'true'
+                props['ha.zookeeper.quorum'] = zookeepers
+                self.format_zookeeper()
 
     def configure_datanode(self, clustername, namenodes, port, webhdfs_port):
         self.configure_hdfs_base(clustername, namenodes, port, webhdfs_port)
@@ -402,6 +417,9 @@ class HDFS(object):
 
     def init_sharededits(self):
         self._hdfs('namenode', '-initializeSharedEdits', '-nonInteractive')
+
+    def format_zookeeper(self):
+        self._hdfs('zkfc', '-formatZK', '-nonInteractive')
 
     def bootstrap_standby(self):
         self._hdfs('namenode', '-bootstrapStandby', '-nonInteractive', '-force')
