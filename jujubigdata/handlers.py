@@ -264,6 +264,11 @@ class HDFS(object):
             # ready to accept connections - increase the value for hadoop 2.4.1
             time.sleep(30)
 
+    def restart_namenode(self):
+        self.stop_namenode()
+        time.sleep(30)
+        self.start_namenode()
+
     def stop_secondarynamenode(self):
         self._hadoop_daemon('stop', 'secondarynamenode')
 
@@ -282,12 +287,22 @@ class HDFS(object):
         if not utils.jps('DataNode'):
             self._hadoop_daemon('start', 'datanode')
 
+    def restart_datanode(self):
+        self.stop_datanode()
+        time.sleep(30)
+        self.start_datanode()
+
     def stop_journalnode(self):
         self._hadoop_daemon('stop', 'journalnode')
 
     def start_journalnode(self):
         if not utils.jps('JournalNode'):
             self._hadoop_daemon('start', 'journalnode')
+
+    def restart_journalnode(self):
+        self.stop_journalnode()
+        time.sleep(30)
+        self.start_journalnode()
 
     def _remote(self, relation):
         """
@@ -451,6 +466,11 @@ class YARN(object):
         if not utils.jps('ResourceManager'):
             self._yarn_daemon('start', 'resourcemanager')
 
+    def restart_resourcemanager(self):
+        self.stop_resourcemanager()
+        time.sleep(30)
+        self.start_resourcemanager()
+
     def stop_jobhistory(self):
         self._jobhistory_daemon('stop', 'historyserver')
 
@@ -464,6 +484,11 @@ class YARN(object):
     def start_nodemanager(self):
         if not utils.jps('NodeManager'):
             self._yarn_daemon('start', 'nodemanager')
+
+    def restart_nodemanager(self):
+        self.stop_nodemanager()
+        time.sleep(30)
+        self.start_nodemanager()
 
     def _remote(self, relation):
         """
