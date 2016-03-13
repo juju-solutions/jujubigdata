@@ -358,7 +358,6 @@ class HDFS(object):
             if zookeepers:
                 props['dfs.ha.automatic-failover.enabled'] = 'true'
                 props['ha.zookeeper.quorum'] = zookeepers
-                self.format_zookeeper()
 
     def configure_datanode(self, clustername, namenodes, port, webhdfs_port):
         self.configure_hdfs_base(clustername, namenodes, port, webhdfs_port)
