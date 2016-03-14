@@ -355,7 +355,7 @@ class HDFS(object):
         host = unit.replace('/', '-')
         return host, data['port']
 
-    def configure_namenode(self, namenodes, zookeepers="None"):
+    def configure_namenode(self, namenodes, zookeepers=None):
         dc = self.hadoop_base.dist_config
         clustername = hookenv.service_name()
         host = hookenv.local_unit().replace('/', '-')
