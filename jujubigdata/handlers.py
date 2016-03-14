@@ -371,7 +371,9 @@ class HDFS(object):
                 props['dfs.ha.automatic-failover.enabled'] = 'true'
                 zkItem = []
                 zkString = []
+                hookenv.log("Zookeepers are: " + str(zookeepers))
                 for zkElement in zookeepers:
+                    hookenv.log("Zookeeper Elements are: " + str(zkElement))
                     zkItem.append(zkElement['host'] + ":" + str(zkElement['port']))
                     zkString = ','.join(zkItem)
                     with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
