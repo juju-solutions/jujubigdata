@@ -276,6 +276,18 @@ class HDFS(object):
         time.sleep(30)
         self.start_namenode()
 
+
+    def restart_zookeeper(self):
+        self.stop_zookeeper()
+        time.sleep(5)
+        self.start_zookeeper()
+
+    def stop_zookeeper(self):
+        self._hadoop_daemon('hdfs', 'start', 'zkfc')
+
+    def start_zookeeper(self):
+        self._hadoop_daemon('hdfs', 'start', 'zkfc')
+
     def restart_dfs(self):
         self.stop_dfs()
         time.sleep(30)
