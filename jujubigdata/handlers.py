@@ -376,8 +376,8 @@ class HDFS(object):
                     hookenv.log("Zookeeper Elements are: " + str(zkElement))
                     zkItem.append(zkElement['host'] + ":" + str(zkElement['port']))
                     zkString = ','.join(zkItem)
-                    with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
-                        props['ha.zookeeper.quorum'] = zkString
+            with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
+                props['ha.zookeeper.quorum'] = zkString
 
     def configure_datanode(self, clustername, namenodes, port, webhdfs_port):
         self.configure_hdfs_base(clustername, namenodes, port, webhdfs_port)
