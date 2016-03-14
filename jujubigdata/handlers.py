@@ -283,7 +283,7 @@ class HDFS(object):
         self.start_zookeeper()
 
     def stop_zookeeper(self):
-        self._hadoop_daemon('start', 'zkfc')
+        self._hadoop_daemon('stop', 'zkfc')
 
     def start_zookeeper(self):
         self._hadoop_daemon('start', 'zkfc')
