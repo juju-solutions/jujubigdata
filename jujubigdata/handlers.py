@@ -369,7 +369,13 @@ class HDFS(object):
             props['dfs.namenode.http-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, dc.port('nn_webapp_http'))
             if zookeepers:
                 props['dfs.ha.automatic-failover.enabled'] = 'true'
-                props['ha.zookeeper.quorum'] = zookeepers
+                zkItem = []
+                zkString = []
+                for zkElement in zookeepers:
+                    zkItem.append(zkElement['host'] + ":" + str(zkElement['port']))
+                    zkString = ','.join(zkItem)
+                    with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
+                        props['ha.zookeeper.quorum'] = zkString
 
     def configure_datanode(self, clustername, namenodes, port, webhdfs_port):
         self.configure_hdfs_base(clustername, namenodes, port, webhdfs_port)
