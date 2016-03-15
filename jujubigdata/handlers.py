@@ -355,7 +355,7 @@ class HDFS(object):
         host = unit.replace('/', '-')
         return host, data['port']
 
-    def configure_namenode(self, namenodes, zookeepers=None):
+    def configure_namenode(self, namenodes):
         dc = self.hadoop_base.dist_config
         clustername = hookenv.service_name()
         host = hookenv.local_unit().replace('/', '-')
@@ -367,17 +367,21 @@ class HDFS(object):
             props['dfs.blocksize'] = int(cfg['dfs_blocksize'])
             props['dfs.namenode.datanode.registration.ip-hostname-check'] = 'true'
             props['dfs.namenode.http-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, dc.port('nn_webapp_http'))
-            if zookeepers:
-                props['dfs.ha.automatic-failover.enabled'] = 'true'
-                zkItem = []
-                zkString = []
-                hookenv.log("Zookeepers are: " + str(zookeepers))
-                for zkElement in zookeepers:
-                    hookenv.log("Zookeeper Elements are: " + str(zkElement))
-                    zkItem.append(zkElement['host'] + ":" + str(zkElement['port']))
-                    zkString = ','.join(zkItem)
-                with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
-                    props['ha.zookeeper.quorum'] = zkString
+
+    def configure_zookeeper(self, zookeepers):
+        dc = self.hadoop_base.dist_config
+        hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
+        with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
+            props['dfs.ha.automatic-failover.enabled'] = 'true'
+            zkItem = []
+            zkString = []
+            hookenv.log("Zookeepers are: " + str(zookeepers))
+            for zkElement in zookeepers:
+                hookenv.log("Zookeeper Elements are: " + str(zkElement))
+                zkItem.append(zkElement['host'] + ":" + str(zkElement['port']))
+                zkString = ','.join(zkItem)
+            with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
+                props['ha.zookeeper.quorum'] = zkString
 
     def configure_datanode(self, clustername, namenodes, port, webhdfs_port):
         self.configure_hdfs_base(clustername, namenodes, port, webhdfs_port)
