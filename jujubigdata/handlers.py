@@ -439,7 +439,7 @@ class HDFS(object):
                 props['dfs.namenode.http-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, webhdfs_port)
 
     def init_sharededits(self):
-        self._hdfs('namenode', '-initializeSharedEdits', '-nonInteractive')
+        self._hdfs('namenode', '-initializeSharedEdits', '-nonInteractive', '-force')
 
     def format_zookeeper(self):
         self._hdfs('zkfc', '-formatZK', '-nonInteractive')
