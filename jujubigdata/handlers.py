@@ -443,7 +443,7 @@ class HDFS(object):
         self._hdfs('namenode', '-initializeSharedEdits', '-nonInteractive', '-force')
 
     def format_zookeeper(self):
-        self._hdfs('zkfc', '-formatZK', '-nonInteractive')
+        self._hdfs('zkfc', '-formatZK', '-nonInteractive', '-force')
 
     def bootstrap_standby(self):
         self._hdfs('namenode', '-bootstrapStandby', '-nonInteractive', '-force')
