@@ -17,7 +17,7 @@ import yaml
 import socket
 import subprocess
 from contextlib import contextmanager
-from subprocess import check_call, check_output, CalledProcessError
+from subprocess import check_call, check_output, CalledProcessError, Popen
 from xml.etree import ElementTree as ET
 from xml.dom import minidom
 from distutils.util import strtobool as _strtobool
@@ -354,6 +354,21 @@ def run_as(user, command, *args, **kwargs):
     finally:
         if stdin:
             stdin.close()  # this also removes tempfile
+
+
+def run_bg_as(user, output_log, command, *args):
+    """
+    Run a command as the given user in the background.
+
+    :param str user: User to run flume agent
+    :param str command: Command to run
+    :param list args: Additional args to pass to the command
+    """
+    parts = [command] + list(args)
+    quoted = ' '.join("'%s'" % p for p in parts)
+    e = read_etc_env()
+    Popen(['su', user, '-c', '{} &> {} &'.format(quoted, output_log)],
+          env=e)
 
 
 def update_etc_hosts(ips_to_names):
