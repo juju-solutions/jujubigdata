@@ -40,7 +40,7 @@ apt_prereqs:
 	echo Processing apt package prereqs
 	for i in $(APT_PREREQS); do dpkg -l | grep -w $$i[^-] >/dev/null || sudo apt-get install -y $$i; done
 	# Need tox, but dont install the apt version unless we have to (dont want to conflict with pip)
-	which tox >/dev/null || sudo apt-get install python-tox
+	which tox >/dev/null || sudo apt-get install -y python-tox
 
 .PHONY: test
 test: apt_prereqs
