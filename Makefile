@@ -1,4 +1,4 @@
-APT_PREREQS=bzr libffi-dev libssl-dev python-dev python3-dev python-virtualenv
+APT_PREREQS=gcc libffi-dev libssl-dev python-dev python3-dev python-virtualenv
 PROJECT=jujubigdata
 SUITE=unstable
 TESTS=tests/
@@ -35,8 +35,15 @@ userinstall:
 	scripts/update-rev
 	python setup.py install -e --user
 
+.PHONY: apt_prereqs
+apt_prereqs:
+	echo Processing apt package prereqs
+	for i in $(APT_PREREQS); do dpkg -l | grep -w $$i[^-] >/dev/null || sudo apt-get install -y $$i; done
+	# Need tox, but dont install the apt version unless we have to (dont want to conflict with pip)
+	which tox >/dev/null || sudo apt-get install python-tox
+
 .PHONY: test
-test:
+test: apt_prereqs
 	tox
 
 .PHONY: ftest
