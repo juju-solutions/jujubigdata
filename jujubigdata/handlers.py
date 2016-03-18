@@ -186,8 +186,13 @@ class HadoopBase(object):
     def configure_hadoop(self):
         java_home = Path(unitdata.kv().get('java.home'))
         java_bin = java_home / 'bin'
-        hadoop_bin = self.dist_config.path('hadoop') / 'bin'
-        hadoop_sbin = self.dist_config.path('hadoop') / 'sbin'
+        hadoop_home = self.dist_config.path('hadoop')
+        hadoop_bin = hadoop_home / 'bin'
+        hadoop_sbin = hadoop_home / 'sbin'
+
+        # If we have hadoop-addons (like lzo), set those in the environment
+        if 'lzo' in self.resources:
+            hadoop_extra_classpath = hadoop_home.walkfiles('hadoop-lzo-*.jar')
         with utils.environment_edit_in_place('/etc/environment') as env:
             env['JAVA_HOME'] = java_home
             if java_bin not in env['PATH']:
@@ -196,14 +201,16 @@ class HadoopBase(object):
                 env['PATH'] = ':'.join([env['PATH'], hadoop_bin])
             if hadoop_sbin not in env['PATH']:
                 env['PATH'] = ':'.join([env['PATH'], hadoop_sbin])
-            env['HADOOP_LIBEXEC_DIR'] = self.dist_config.path('hadoop') / 'libexec'
-            env['HADOOP_INSTALL'] = self.dist_config.path('hadoop')
-            env['HADOOP_HOME'] = self.dist_config.path('hadoop')
-            env['HADOOP_COMMON_HOME'] = self.dist_config.path('hadoop')
-            env['HADOOP_HDFS_HOME'] = self.dist_config.path('hadoop')
-            env['HADOOP_MAPRED_HOME'] = self.dist_config.path('hadoop')
+            if hadoop_extra_classpath:
+                env['HADOOP_EXTRA_CLASSPATH'] = ':'.join([cp for cp in hadoop_extra_classpath])
+            env['HADOOP_LIBEXEC_DIR'] = hadoop_home / 'libexec'
+            env['HADOOP_INSTALL'] = hadoop_home
+            env['HADOOP_HOME'] = hadoop_home
+            env['HADOOP_COMMON_HOME'] = hadoop_home
+            env['HADOOP_HDFS_HOME'] = hadoop_home
+            env['HADOOP_MAPRED_HOME'] = hadoop_home
             env['HADOOP_MAPRED_LOG_DIR'] = self.dist_config.path('mapred_log_dir')
-            env['HADOOP_YARN_HOME'] = self.dist_config.path('hadoop')
+            env['HADOOP_YARN_HOME'] = hadoop_home
             env['HADOOP_CONF_DIR'] = self.dist_config.path('hadoop_conf')
             env['YARN_LOG_DIR'] = self.dist_config.path('yarn_log_dir')
             env['HADOOP_LOG_DIR'] = self.dist_config.path('hdfs_log_dir')
