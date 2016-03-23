@@ -474,7 +474,8 @@ class HDFS(object):
         self.stop_namenode()
         # Run without prompting; this will fail if the namenode has already
         # been formatted -- we do not want to reformat existing data!
-        self._hdfs('namenode', '-format', '-noninteractive')
+        clusterid = hookenv.service_name 
+        self._hdfs('namenode', '-format', '-noninteractive', '-clusterid', clusterid)
         unitdata.kv().set('hdfs.namenode.formatted', True)
         unitdata.kv().flush(True)
 
