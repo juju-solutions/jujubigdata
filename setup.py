@@ -19,6 +19,7 @@ SETUP = {
         "pyaml",
         "path.py>=7.0",
         "jujuresources>=0.2.5",
+        "setuptools-scm>=1.0.0,<2.0.0",  # needed by path.py (see pypa/pip#410)
     ],
     'packages': [
         "jujubigdata",
