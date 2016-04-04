@@ -487,12 +487,24 @@ def remove_kv_hosts(*hosts):
     unit_kv.flush(True)
 
 
+def ssh_key_dir(user):
+    return Path('/home/%s/.ssh' % user)
+
+
+def ssh_priv_key(user):
+    return ssh_key_dir(user) / 'id_rsa'
+
+
+def ssh_pub_key(user):
+    return ssh_key_dir(user) / 'id_rsa.pub'
+
+
 def get_ssh_key(user):
-    sshdir = Path('/home/%s/.ssh' % user)
+    sshdir = ssh_key_dir(user)
     if not sshdir.exists():
         host.mkdir(sshdir, owner=user, group='hadoop', perms=0o755)
-    keyfile = sshdir / 'id_rsa'
-    pubfile = sshdir / 'id_rsa.pub'
+    keyfile = ssh_priv_key(user)
+    pubfile = ssh_pub_key(user)
     authfile = sshdir / 'authorized_keys'
     if not pubfile.exists():
         (sshdir / 'config').write_lines([
@@ -508,7 +520,7 @@ def get_ssh_key(user):
 
 
 def install_ssh_key(user, ssh_key):
-    sshdir = Path('/home/%s/.ssh' % user)
+    sshdir = ssh_key_dir(user)
     if not sshdir.exists():
         host.mkdir(sshdir, owner=user, group='hadoop', perms=0o755)
     Path(sshdir / 'authorized_keys').write_text(ssh_key, append=True)
