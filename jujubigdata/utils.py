@@ -517,24 +517,28 @@ def ssh_pub_key(user):
     return ssh_key_dir(user) / 'id_rsa.pub'
 
 
-def get_ssh_key(user):
+def generate_ssh_key(user):
+    if ssh_priv_key(user).exists():
+        return
     sshdir = ssh_key_dir(user)
     if not sshdir.exists():
         host.mkdir(sshdir, owner=user, group='hadoop', perms=0o755)
     keyfile = ssh_priv_key(user)
-    pubfile = ssh_pub_key(user)
-    authfile = sshdir / 'authorized_keys'
-    if not pubfile.exists():
-        (sshdir / 'config').write_lines([
-            'Host *',
-            '    StrictHostKeyChecking no'
-        ], append=True)
-        check_call(['ssh-keygen', '-t', 'rsa', '-P', '', '-f', keyfile])
-        host.chownr(sshdir, user, 'hadoop')
+    (sshdir / 'config').write_lines([
+        'Host *',
+        '    StrictHostKeyChecking no'
+    ], append=True)
+    check_call(['ssh-keygen', '-t', 'rsa', '-P', '', '-f', keyfile])
+    host.chownr(sshdir, user, 'hadoop')
+
+
+def get_ssh_key(user):
+    generate_ssh_key(user)
     # allow ssh'ing to localhost; useful for things like start_dfs.sh
+    authfile = ssh_key_dir(user) / 'authorized_keys'
     if not authfile.exists():
-        Path.copy(pubfile, authfile)
-    return pubfile.text()
+        Path.copy(ssh_pub_key(user), authfile)
+    return ssh_pub_key(user).text()
 
 
 def install_ssh_key(user, ssh_key):

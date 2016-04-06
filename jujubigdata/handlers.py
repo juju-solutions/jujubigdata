@@ -276,7 +276,6 @@ class HDFS(object):
         time.sleep(30)
         self.start_namenode()
 
-
     def restart_zookeeper(self):
         self.stop_zookeeper()
         time.sleep(5)
