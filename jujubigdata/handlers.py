@@ -191,8 +191,9 @@ class HadoopBase(object):
         hadoop_sbin = hadoop_home / 'sbin'
 
         # If we have hadoop-addons (like lzo), set those in the environment
+        hadoop_extra_classpath = []
         if 'lzo' in self.resources:
-            hadoop_extra_classpath = hadoop_home.walkfiles('hadoop-lzo-*.jar')
+            hadoop_extra_classpath.extend(hadoop_home.walkfiles('hadoop-lzo-*.jar'))
         with utils.environment_edit_in_place('/etc/environment') as env:
             env['JAVA_HOME'] = java_home
             if java_bin not in env['PATH']:
@@ -202,7 +203,7 @@ class HadoopBase(object):
             if hadoop_sbin not in env['PATH']:
                 env['PATH'] = ':'.join([env['PATH'], hadoop_sbin])
             if hadoop_extra_classpath:
-                env['HADOOP_EXTRA_CLASSPATH'] = ':'.join([cp for cp in hadoop_extra_classpath])
+                env['HADOOP_EXTRA_CLASSPATH'] = ':'.join(hadoop_extra_classpath)
             env['HADOOP_LIBEXEC_DIR'] = hadoop_home / 'libexec'
             env['HADOOP_INSTALL'] = hadoop_home
             env['HADOOP_HOME'] = hadoop_home
