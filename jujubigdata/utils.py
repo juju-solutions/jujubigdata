@@ -441,22 +441,21 @@ def resolve_private_address(addr):
         return contained.groups(0).replace('-', '.')
 
 
-def check_peer_port(peer_ip, port):
-    import socket
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    result = sock.connect_ex((peer_ip, int(port)))
-    if result == 0:
-        return True
-    else:
+def check_connect(addr, port):
+    try:
+        with socket.create_connection((addr, port), timeout=10):
+            return True
+    except OSError:
         return False
 
 
 def ha_node_state(host):
     try:
-        output = run_as('hdfs', 'hdfs', 'haadmin', '-getServiceState', host, capture_output=True)
-        return output
+        output = run_as('hdfs', 'hdfs', 'haadmin', '-getServiceState', host,
+                        capture_output=True)
     except CalledProcessError as e:
-        output = e.output  # probably a "connection refused"; wait and try again
+        output = e.output  # probably "connection refused"
+    return output.strip()
 
 
 def initialize_kv_host():
