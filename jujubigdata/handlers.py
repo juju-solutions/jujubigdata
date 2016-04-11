@@ -331,11 +331,8 @@ class HDFS(object):
         host = hookenv.local_unit().replace('/', '-')
         port = dc.port('namenode')
         self.configure_hdfs_base(host, port)
-        cfg = self.hadoop_base.charm_config
         hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
-            props['dfs.replication'] = cfg['dfs_replication']
-            props['dfs.blocksize'] = int(cfg['dfs_blocksize'])
             props['dfs.namenode.datanode.registration.ip-hostname-check'] = 'true'
             props['dfs.namenode.http-address'] = '0.0.0.0:{}'.format(dc.port('nn_webapp_http'))
             # TODO: support SSL
