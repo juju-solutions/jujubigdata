@@ -548,6 +548,15 @@ def install_ssh_key(user, ssh_key):
     host.chownr(sshdir, user, 'hadoop')
 
 
+def wait_for_connect(addr, port, timeout):
+    start = time.time()
+    while time.time() - start < timeout:
+        if check_connect(addr, port):
+            return True
+        time.sleep(2)
+    raise TimeoutError('Timed-out waiting for connection to %s on port %s' % (addr, port))
+
+
 def wait_for_hdfs(timeout):
     start = time.time()
     while time.time() - start < timeout:
