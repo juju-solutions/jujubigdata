@@ -372,16 +372,11 @@ class HDFS(object):
         hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             props['dfs.ha.automatic-failover.enabled'] = 'true'
-        zkItem = []
-        zkString = []
-        hookenv.log("Zookeepers are: " + str(zookeepers))
-        for zkElement in zookeepers:
-            hookenv.log("Zookeeper Elements are: " + str(zkElement))
-            zkItem.append(zkElement['host'] + ":" + str(zkElement['port']))
-            zkString = ','.join(zkItem)
-            hookenv.log("Zookeeper zkString is : " + str(zkString))
-        with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
-            props['ha.zookeeper.quorum'] = zkString
+        core_site = dc.path('hadoop_conf') / 'core-site.xml'
+        with utils.xmlpropmap_edit_in_place(core_site) as props:
+            zk_str = ','.join('{host}:{port}'.format(**zk) for zk in zookeepers)
+            hookenv.log("Zookeeper string is: %s" % zk_str)
+            props['ha.zookeeper.quorum'] = zk_str
 
     def configure_datanode(self, clustername, namenodes, port, webhdfs_port):
         self.configure_hdfs_base(clustername, namenodes, port, webhdfs_port)
