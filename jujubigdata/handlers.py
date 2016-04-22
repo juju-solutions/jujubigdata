@@ -412,7 +412,7 @@ class HDFS(object):
             props['dfs.nameservices'] = clustername
             props['dfs.client.failover.proxy.provider.%s' % clustername] = \
                 'org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider'
-            props['dfs.ha.fencing.methods'] = 'sshfence'
+            props['dfs.ha.fencing.methods'] = 'sshfence\nshell(/bin/true)'
             props['dfs.ha.fencing.ssh.private-key-files'] = utils.ssh_priv_key('hdfs')
             props['dfs.ha.namenodes.%s' % clustername] = ','.join(namenodes)
             for host in namenodes:
