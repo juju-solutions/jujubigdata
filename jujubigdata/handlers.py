@@ -11,7 +11,6 @@
 # Apache License for more details.
 
 from subprocess import check_call, check_output
-import time
 
 from path import Path
 
@@ -266,19 +265,13 @@ class HDFS(object):
     def start_namenode(self):
         if not utils.jps('NameNode'):
             self._hadoop_daemon('start', 'namenode')
-            # Some hadoop processes take a bit of time to start
-            # we need to let them get to a point where they are
-            # ready to accept connections - increase the value for hadoop 2.4.1
-            time.sleep(30)
 
     def restart_namenode(self):
         self.stop_namenode()
-        time.sleep(30)
         self.start_namenode()
 
     def restart_zookeeper(self):
         self.stop_zookeeper()
-        time.sleep(5)
         self.start_zookeeper()
 
     def stop_zookeeper(self):
@@ -289,7 +282,6 @@ class HDFS(object):
 
     def restart_dfs(self):
         self.stop_dfs()
-        time.sleep(30)
         self.start_dfs()
 
     def stop_dfs(self):
@@ -304,10 +296,6 @@ class HDFS(object):
     def start_secondarynamenode(self):
         if not utils.jps('SecondaryNameNode'):
             self._hadoop_daemon('start', 'secondarynamenode')
-            # Some hadoop processes take a bit of time to start
-            # we need to let them get to a point where they are
-            # ready to accept connections - increase the value for hadoop 2.4.1
-            time.sleep(30)
 
     def stop_datanode(self):
         self._hadoop_daemon('stop', 'datanode')
@@ -325,7 +313,6 @@ class HDFS(object):
 
     def restart_datanode(self):
         self.stop_datanode()
-        time.sleep(30)
         self.start_datanode()
 
     def stop_journalnode(self):
@@ -337,7 +324,6 @@ class HDFS(object):
 
     def restart_journalnode(self):
         self.stop_journalnode()
-        time.sleep(30)
         self.start_journalnode()
 
     def _remote(self, relation):
@@ -533,7 +519,6 @@ class YARN(object):
 
     def restart_resourcemanager(self):
         self.stop_resourcemanager()
-        time.sleep(30)
         self.start_resourcemanager()
 
     def stop_jobhistory(self):
@@ -552,7 +537,6 @@ class YARN(object):
 
     def restart_nodemanager(self):
         self.stop_nodemanager()
-        time.sleep(30)
         self.start_nodemanager()
 
     def _remote(self, relation):
