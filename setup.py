@@ -20,6 +20,7 @@ SETUP = {
         "path.py>=7.0",
         "jujuresources>=0.2.5",
         "setuptools-scm>=1.0.0,<2.0.0",  # needed by path.py (see pypa/pip#410)
+        "charms.templating.jinja2>=1.0.0,<2.0.0",
     ],
     'packages': [
         "jujubigdata",
@@ -29,6 +30,7 @@ SETUP = {
     'license': "Apache License v2.0",
     'long_description': open('README.rst').read(),
     'description': 'Helpers for Juju Charm development for Big Data',
+    'package_data': {'jujubigdata': ['templates/*']},
 }
 
 try:

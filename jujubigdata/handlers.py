@@ -10,14 +10,17 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # Apache License for more details.
 
+import os
+import sys
 from subprocess import check_call, check_output
-
 from path import Path
 
 import jujuresources
 
 from charmhelpers.core import hookenv
 from charmhelpers.core import unitdata
+from charmhelpers.core import host
+from charms.templating.jinja2 import render
 
 try:
     from charmhelpers.core.charmframework import helpers
@@ -255,17 +258,54 @@ class HadoopBase(object):
         for port in self.dist_config.exposed_ports(service):
             hookenv.close_port(port)
 
+    def setup_init_script(self, user, servicename):
+        daemon = "yarn"
+        if user == "hdfs":
+            daemon = "hadoop"
+        elif user == "mapred":
+            daemon = "mr-jobhistory"
+
+        template_name = 'templates/upstart.conf'
+        target_template_path = '/etc/init/{}.conf'.format(servicename)
+        if host.init_is_systemd():
+            template_name = 'templates/systemd.conf'
+            target_template_path = '/etc/systemd/system/{}.service'.format(servicename)
+
+        d = os.path.dirname(sys.modules['jujubigdata'].__file__)
+        source_template_path = os.path.join(d, template_name)
+
+        if os.path.exists(target_template_path):
+            os.remove(target_template_path)
+
+        render(
+            source_template_path,
+            target_template_path,
+            templates_dir="/",
+            context={
+                'service': servicename,
+                'user': user,
+                'hadoop_path': self.dist_config.path('hadoop'),
+                'hadoop_conf': self.dist_config.path('hadoop_conf'),
+                'daemon': daemon,
+            },
+        )
+        if host.init_is_systemd():
+            utils.run_as('root', 'systemctl', 'enable', '{}.service'.format(servicename))
+
+        if host.init_is_systemd():
+            utils.run_as('root', 'systemctl', 'daemon-reload')
+
 
 class HDFS(object):
     def __init__(self, hadoop_base):
         self.hadoop_base = hadoop_base
 
     def stop_namenode(self):
-        self._hadoop_daemon('stop', 'namenode')
+        host.service_stop('namenode')
 
     def start_namenode(self):
         if not utils.jps('NameNode'):
-            self._hadoop_daemon('start', 'namenode')
+            host.service_start('namenode')
 
     def restart_namenode(self):
         self.stop_namenode()
@@ -276,10 +316,10 @@ class HDFS(object):
         self.start_zookeeper()
 
     def stop_zookeeper(self):
-        self._hadoop_daemon('stop', 'zkfc')
+        host.service_stop('zkfc')
 
     def start_zookeeper(self):
-        self._hadoop_daemon('start', 'zkfc')
+        host.service_start('zkfc')
 
     def restart_dfs(self):
         self.stop_dfs()
@@ -292,29 +332,29 @@ class HDFS(object):
         self.hadoop_base.run('hdfs', 'sbin/start-dfs.sh')
 
     def stop_secondarynamenode(self):
-        self._hadoop_daemon('stop', 'secondarynamenode')
+        host.service_stop('secondarynamenode')
 
     def start_secondarynamenode(self):
         if not utils.jps('SecondaryNameNode'):
-            self._hadoop_daemon('start', 'secondarynamenode')
+            host.service_start('secondarynamenode')
 
     def stop_datanode(self):
-        self._hadoop_daemon('stop', 'datanode')
+        host.service_stop('datanode')
 
     def start_datanode(self):
         if not utils.jps('DataNode'):
-            self._hadoop_daemon('start', 'datanode')
+            host.service_start('datanode')
 
     def restart_datanode(self):
         self.stop_datanode()
         self.start_datanode()
 
     def stop_journalnode(self):
-        self._hadoop_daemon('stop', 'journalnode')
+        host.service_stop('journalnode')
 
     def start_journalnode(self):
         if not utils.jps('JournalNode'):
-            self._hadoop_daemon('start', 'journalnode')
+            host.service_start('journalnode')
 
     def restart_journalnode(self):
         self.stop_journalnode()
@@ -329,6 +369,7 @@ class HDFS(object):
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             props['dfs.namenode.datanode.registration.ip-hostname-check'] = 'true'
             props['dfs.namenode.http-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, dc.port('nn_webapp_http'))
+        self.hadoop_base.setup_init_script("hdfs", "namenode")
 
     def configure_zookeeper(self, zookeepers):
         dc = self.hadoop_base.dist_config
@@ -340,6 +381,7 @@ class HDFS(object):
             zk_str = ','.join('{host}:{port}'.format(**zk) for zk in zookeepers)
             hookenv.log("Zookeeper string is: %s" % zk_str)
             props['ha.zookeeper.quorum'] = zk_str
+        self.hadoop_base.setup_init_script("hdfs", "zkfc")
 
     def configure_datanode(self, clustername, namenodes, port, webhdfs_port):
         self.configure_hdfs_base(clustername, namenodes, port, webhdfs_port)
@@ -347,6 +389,8 @@ class HDFS(object):
         hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             props['dfs.datanode.http.address'] = '0.0.0.0:{}'.format(dc.port('dn_webapp_http'))
+        self.hadoop_base.setup_init_script("hdfs", "datanode")
+        self.hadoop_base.setup_init_script("hdfs", "journalnode")
 
     def configure_journalnode(self):
         dc = self.hadoop_base.dist_config
@@ -392,7 +436,7 @@ class HDFS(object):
             props['dfs.ha.fencing.methods'] = 'sshfence\nshell(/bin/true)'
             props['dfs.ha.fencing.ssh.private-key-files'] = utils.ssh_priv_key('hdfs')
             props['dfs.ha.namenodes.%s' % clustername] = ','.join(namenodes)
-            for host in namenodes:
+            for node in namenodes:
                 props['dfs.namenode.rpc-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, port)
                 props['dfs.namenode.http-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, webhdfs_port)
 
@@ -420,7 +464,7 @@ class HDFS(object):
         hookenv.log(str(len(namenodes)))
         if len(namenodes) == 2:
             output = []
-            for host in namenodes:
+            for node in namenodes:
                 output.append(utils.run_as('hdfs',
                                            'hdfs', 'haadmin', '-getServiceState', '{}'.format(leader),
                                            capture_output=True).lower())
@@ -475,12 +519,6 @@ class HDFS(object):
                 ';'.join(['%s:%s' % (host, port) for host in nodes]),
                 clustername)
 
-    def _hadoop_daemon(self, command, service):
-        self.hadoop_base.run('hdfs', 'sbin/hadoop-daemon.sh',
-                             '--config',
-                             self.hadoop_base.dist_config.path('hadoop_conf'),
-                             command, service)
-
     def _hdfs(self, command, *args):
         self.hadoop_base.run('hdfs', 'bin/hdfs', command, *args)
 
@@ -490,29 +528,29 @@ class YARN(object):
         self.hadoop_base = hadoop_base
 
     def stop_resourcemanager(self):
-        self._yarn_daemon('stop', 'resourcemanager')
+        host.service_stop('resourcemanager')
 
     def start_resourcemanager(self):
         if not utils.jps('ResourceManager'):
-            self._yarn_daemon('start', 'resourcemanager')
+            host.service_start('resourcemanager')
 
     def restart_resourcemanager(self):
         self.stop_resourcemanager()
         self.start_resourcemanager()
 
     def stop_jobhistory(self):
-        self._jobhistory_daemon('stop', 'historyserver')
+        host.service_stop('historyserver')
 
     def start_jobhistory(self):
         if not utils.jps('JobHistoryServer'):
-            self._jobhistory_daemon('start', 'historyserver')
+            host.service_start('historyserver')
 
     def stop_nodemanager(self):
-        self._yarn_daemon('stop', 'nodemanager')
+        host.service_stop('nodemanager')
 
     def start_nodemanager(self):
         if not utils.jps('NodeManager'):
-            self._yarn_daemon('start', 'nodemanager')
+            host.service_start('nodemanager')
 
     def restart_nodemanager(self):
         self.stop_nodemanager()
@@ -538,6 +576,7 @@ class YARN(object):
             props['yarn.resourcemanager.webapp.address'] = '0.0.0.0:{}'.format(dc.port('rm_webapp_http'))
             # TODO: support SSL
             # props['yarn.resourcemanager.webapp.https.address'] = '0.0.0.0:{}'.format(dc.port('rm_webapp_https'))
+        self.hadoop_base.setup_init_script(user='yarn', servicename='resourcemanager')
 
     def configure_jobhistory(self):
         self.configure_yarn_base(*self._local())
@@ -549,9 +588,11 @@ class YARN(object):
             props["mapreduce.jobhistory.webapp.address"] = "0.0.0.0:{}".format(dc.port('jh_webapp_http'))
             props["mapreduce.jobhistory.intermediate-done-dir"] = "/mr-history/tmp"
             props["mapreduce.jobhistory.done-dir"] = "/mr-history/done"
+        self.hadoop_base.setup_init_script(user='mapred', servicename='historyserver')
 
     def configure_nodemanager(self, host, port, history_http, history_ipc):
         self.configure_yarn_base(host, port, history_http, history_ipc)
+        self.hadoop_base.setup_init_script(user="yarn", servicename="nodemanager")
 
     def configure_client(self, host, port, history_http, history_ipc):
         self.configure_yarn_base(host, port, history_http, history_ipc)
@@ -598,16 +639,3 @@ class YARN(object):
         self.hadoop_base.register_slaves(slaves)
         if utils.jps('ResourceManager'):
             self.hadoop_base.run('mapred', 'bin/yarn', 'rmadmin', '-refreshNodes')
-
-    def _yarn_daemon(self, command, service):
-        self.hadoop_base.run('yarn', 'sbin/yarn-daemon.sh',
-                             '--config',
-                             self.hadoop_base.dist_config.path('hadoop_conf'),
-                             command, service)
-
-    def _jobhistory_daemon(self, command, service):
-        # TODO refactor job history to separate class
-        self.hadoop_base.run('mapred', 'sbin/mr-jobhistory-daemon.sh',
-                             '--config',
-                             self.hadoop_base.dist_config.path('hadoop_conf'),
-                             command, service)
