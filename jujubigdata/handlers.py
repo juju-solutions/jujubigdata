@@ -11,7 +11,6 @@
 # Apache License for more details.
 
 from subprocess import check_call, check_output
-import time
 
 from path import Path
 
@@ -267,15 +266,30 @@ class HDFS(object):
     def start_namenode(self):
         if not utils.jps('NameNode'):
             self._hadoop_daemon('start', 'namenode')
-            # Some hadoop processes take a bit of time to start
-            # we need to let them get to a point where they are
-            # ready to accept connections - increase the value for hadoop 2.4.1
-            time.sleep(30)
 
     def restart_namenode(self):
         self.stop_namenode()
-        time.sleep(30)
         self.start_namenode()
+
+    def restart_zookeeper(self):
+        self.stop_zookeeper()
+        self.start_zookeeper()
+
+    def stop_zookeeper(self):
+        self._hadoop_daemon('stop', 'zkfc')
+
+    def start_zookeeper(self):
+        self._hadoop_daemon('start', 'zkfc')
+
+    def restart_dfs(self):
+        self.stop_dfs()
+        self.start_dfs()
+
+    def stop_dfs(self):
+        self.hadoop_base.run('hdfs', 'sbin/stop-dfs.sh')
+
+    def start_dfs(self):
+        self.hadoop_base.run('hdfs', 'sbin/start-dfs.sh')
 
     def stop_secondarynamenode(self):
         self._hadoop_daemon('stop', 'secondarynamenode')
@@ -283,10 +297,6 @@ class HDFS(object):
     def start_secondarynamenode(self):
         if not utils.jps('SecondaryNameNode'):
             self._hadoop_daemon('start', 'secondarynamenode')
-            # Some hadoop processes take a bit of time to start
-            # we need to let them get to a point where they are
-            # ready to accept connections - increase the value for hadoop 2.4.1
-            time.sleep(30)
 
     def stop_datanode(self):
         self._hadoop_daemon('stop', 'datanode')
@@ -295,9 +305,15 @@ class HDFS(object):
         if not utils.jps('DataNode'):
             self._hadoop_daemon('start', 'datanode')
 
+    def stop_journalnode(self):
+        self._hadoop_daemon('stop', 'journalnode')
+
+    def start_journalnode(self):
+        if not utils.jps('JournalNode'):
+            self._hadoop_daemon('start', 'journalnode')
+
     def restart_datanode(self):
         self.stop_datanode()
-        time.sleep(30)
         self.start_datanode()
 
     def stop_journalnode(self):
@@ -309,7 +325,6 @@ class HDFS(object):
 
     def restart_journalnode(self):
         self.stop_journalnode()
-        time.sleep(30)
         self.start_journalnode()
 
     def _remote(self, relation):
@@ -326,66 +341,48 @@ class HDFS(object):
         host = unit.replace('/', '-')
         return host, data['port']
 
-    def configure_namenode(self, secondary_host=None, secondary_port=None):
+    def configure_namenode(self, namenodes):
         dc = self.hadoop_base.dist_config
+        clustername = hookenv.service_name()
         host = hookenv.local_unit().replace('/', '-')
-        port = dc.port('namenode')
-        self.configure_hdfs_base(host, port)
+        self.configure_hdfs_base(clustername, namenodes, dc.port('namenode'), dc.port('nn_webapp_http'))
         hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             props['dfs.namenode.datanode.registration.ip-hostname-check'] = 'true'
-            props['dfs.namenode.http-address'] = '0.0.0.0:{}'.format(dc.port('nn_webapp_http'))
-            # TODO: support SSL
-            # props['dfs.namenode.https-address'] = '0.0.0.0:{}'.format(dc.port('nn_webapp_https'))
+            props['dfs.namenode.http-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, dc.port('nn_webapp_http'))
 
-            # FIXME hack-around until transition to layers is complete
-            if not (secondary_host and secondary_port) and helpers:
-                unit, secondary = helpers.any_ready_unit('secondary')
-                if unit:
-                    secondary_host = secondary['hostname']
-                    secondary_port = secondary['port']
-            if secondary_host and secondary_port:
-                props['dfs.secondary.http.address'] = '{host}:{port}'.format(
-                    host=secondary_host,
-                    port=secondary_port,
-                )
+    def configure_zookeeper(self, zookeepers):
+        dc = self.hadoop_base.dist_config
+        hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
+        with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
+            props['dfs.ha.automatic-failover.enabled'] = 'true'
+        core_site = dc.path('hadoop_conf') / 'core-site.xml'
+        with utils.xmlpropmap_edit_in_place(core_site) as props:
+            zk_str = ','.join('{host}:{port}'.format(**zk) for zk in zookeepers)
+            hookenv.log("Zookeeper string is: %s" % zk_str)
+            props['ha.zookeeper.quorum'] = zk_str
 
-    def configure_secondarynamenode(self, host=None, port=None):
-        """
-        Configure the Secondary Namenode when the apache-hadoop-hdfs-secondary
-        charm is deployed and related to apache-hadoop-hdfs-master.
-
-        The only purpose of the secondary namenode is to perform periodic
-        checkpoints. The secondary name-node periodically downloads current
-        namenode image and edits log files, joins them into new image and
-        uploads the new image back to the (primary and the only) namenode.
-        """
-        if not (host and port):
-            host, port = self._remote("secondary")
-        self.configure_hdfs_base(host, port)
-
-    def configure_datanode(self, host=None, port=None):
-        if not (host and port):
-            host, port = self._remote("datanode")
-        self.configure_hdfs_base(host, port)
+    def configure_datanode(self, clustername, namenodes, port, webhdfs_port):
+        self.configure_hdfs_base(clustername, namenodes, port, webhdfs_port)
         dc = self.hadoop_base.dist_config
         hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             props['dfs.datanode.http.address'] = '0.0.0.0:{}'.format(dc.port('dn_webapp_http'))
-            # TODO: support SSL
-            # props['dfs.datanode.https.address'] = '0.0.0.0:{}'.format(dc.port('dn_webapp_https'))
 
-    def configure_client(self, host=None, port=None):
-        if not (host and port):
-            host, port = self._remote("namenode")
-        self.configure_hdfs_base(host, port)
+    def configure_journalnode(self):
+        dc = self.hadoop_base.dist_config
+        hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
+        with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
+            props['dfs.journalnode.rpc-address'] = '0.0.0.0:{}'.format(dc.port('journalnode'))
+            props['dfs.journalnode.http-address'] = '0.0.0.0:{}'.format(dc.port('jn_webapp_http'))
 
-    def configure_hdfs_base(self, host, port):
+    def configure_client(self, clustername, namenodes, port, webhdfs_port):
+        self.configure_hdfs_base(clustername, namenodes, port, webhdfs_port)
+
+    def configure_hdfs_base(self, clustername, namenodes, port, webhdfs_port):
         dc = self.hadoop_base.dist_config
         core_site = dc.path('hadoop_conf') / 'core-site.xml'
         with utils.xmlpropmap_edit_in_place(core_site) as props:
-            if host and port:
-                props['fs.defaultFS'] = "hdfs://{host}:{port}".format(host=host, port=port)
             props['hadoop.proxyuser.hue.hosts'] = "*"
             props['hadoop.proxyuser.hue.groups'] = "*"
             props['hadoop.proxyuser.oozie.groups'] = '*'
@@ -403,13 +400,51 @@ class HDFS(object):
                                                   'org.apache.hadoop.io.compress.DefaultCodec, '
                                                   'org.apache.hadoop.io.compress.BZip2Codec, '
                                                   'org.apache.hadoop.io.compress.SnappyCodec')
-
+            props['fs.defaultFS'] = "hdfs://{clustername}".format(clustername=clustername, port=port)
         hdfs_site = dc.path('hadoop_conf') / 'hdfs-site.xml'
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             props['dfs.webhdfs.enabled'] = "true"
             props['dfs.namenode.name.dir'] = dc.path('hdfs_dir_base') / 'cache/hadoop/dfs/name'
             props['dfs.datanode.data.dir'] = dc.path('hdfs_dir_base') / 'cache/hadoop/dfs/name'
             props['dfs.permissions'] = 'false'  # TODO - secure this hadoop installation!
+            props['dfs.nameservices'] = clustername
+            props['dfs.client.failover.proxy.provider.%s' % clustername] = \
+                'org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider'
+            props['dfs.ha.fencing.methods'] = 'sshfence\nshell(/bin/true)'
+            props['dfs.ha.fencing.ssh.private-key-files'] = utils.ssh_priv_key('hdfs')
+            props['dfs.ha.namenodes.%s' % clustername] = ','.join(namenodes)
+            for host in namenodes:
+                props['dfs.namenode.rpc-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, port)
+                props['dfs.namenode.http-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, webhdfs_port)
+
+    def init_sharededits(self):
+        self._hdfs('namenode', '-initializeSharedEdits', '-nonInteractive', '-force')
+
+    def format_zookeeper(self):
+        self._hdfs('zkfc', '-formatZK', '-nonInteractive', '-force')
+
+    def bootstrap_standby(self):
+        self._hdfs('namenode', '-bootstrapStandby', '-nonInteractive', '-force')
+
+    def transition_to_active(self, serviceid):
+        hookenv.log("Transitioning to active: " + str(serviceid))
+        self._hdfs('haadmin', '-transitionToActive', serviceid)
+
+    def ensure_HA_active(self, namenodes, leader):
+        '''
+        Function to ensure one namenode in an HA Initialized cluster is
+        in active and one is in standby in the absence of zookeeper
+        to handle automatic failover
+        '''
+        hookenv.log("ensure HA active function:")
+        hookenv.log(str(namenodes) + ", " + str(leader))
+        hookenv.log(str(len(namenodes)))
+        if len(namenodes) == 2:
+            output = []
+            for host in namenodes:
+                output.append(utils.run_as('hdfs', 'hdfs', 'haadmin', '-getServiceState', '{}'.format(leader), capture_output=True).lower())
+            if not 'active' in output:
+                self.transition_to_active(leader)
 
     def format_namenode(self):
         if unitdata.kv().get('hdfs.namenode.formatted'):
@@ -417,13 +452,15 @@ class HDFS(object):
         self.stop_namenode()
         # Run without prompting; this will fail if the namenode has already
         # been formatted -- we do not want to reformat existing data!
-        self._hdfs('namenode', '-format', '-noninteractive')
+        clusterid = hookenv.service_name()
+        self._hdfs('namenode', '-format', '-noninteractive', '-clusterid', clusterid)
         unitdata.kv().set('hdfs.namenode.formatted', True)
         unitdata.kv().flush(True)
 
     def create_hdfs_dirs(self):
         if unitdata.kv().get('hdfs.namenode.dirs.created'):
             return
+        hookenv.log("Creating HDFS Data dirs...")
         self._hdfs('dfs', '-mkdir', '-p', '/tmp/hadoop/mapred/staging')
         self._hdfs('dfs', '-chmod', '-R', '1777', '/tmp/hadoop/mapred/staging')
         self._hdfs('dfs', '-mkdir', '-p', '/tmp/hadoop-yarn/staging')
@@ -442,13 +479,20 @@ class HDFS(object):
         unitdata.kv().set('hdfs.namenode.dirs.created', True)
         unitdata.kv().flush(True)
 
-    def register_slaves(self, slaves=None):
-        if slaves is None:  # FIXME hack-around until transition to layers is complete
-            slaves = helpers.all_ready_units('datanode')
-            slaves = [data['hostname'] for slave, data in slaves]
+    def register_slaves(self, slaves):
         self.hadoop_base.register_slaves(slaves)
+
+    def reload_slaves(self):
         if utils.jps('NameNode'):
             self.hadoop_base.run('hdfs', 'bin/hdfs', 'dfsadmin', '-refreshNodes')
+
+    def register_journalnodes(self, nodes, port):
+        clustername = hookenv.service_name()
+        hdfs_site = self.hadoop_base.dist_config.path('hadoop_conf') / 'hdfs-site.xml'
+        with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
+            props['dfs.namenode.shared.edits.dir'] = 'qjournal://{}/{}'.format(
+                ';'.join(['%s:%s' % (host, port) for host in nodes]),
+                clustername)
 
     def _hadoop_daemon(self, command, service):
         self.hadoop_base.run('hdfs', 'sbin/hadoop-daemon.sh',
@@ -473,7 +517,6 @@ class YARN(object):
 
     def restart_resourcemanager(self):
         self.stop_resourcemanager()
-        time.sleep(30)
         self.start_resourcemanager()
 
     def stop_jobhistory(self):
@@ -492,7 +535,6 @@ class YARN(object):
 
     def restart_nodemanager(self):
         self.stop_nodemanager()
-        time.sleep(30)
         self.start_nodemanager()
 
     def _remote(self, relation):

@@ -441,6 +441,30 @@ def resolve_private_address(addr):
         return contained.groups(0).replace('-', '.')
 
 
+def check_connect(addr, port):
+    try:
+        with socket.create_connection((addr, port), timeout=10):
+            return True
+    except OSError:
+        return False
+
+
+def ha_node_state(host, retries=None):
+    """
+    If given, retries overrides the default number (45) of times each
+    NameNode will try to be connected to.
+    """
+    try:
+        cmd = ['hdfs', 'hdfs', 'haadmin']
+        if retries is not None:
+            cmd.append('-Dipc.client.connect.max.retries.on.timeouts=%s' % retries)
+        cmd.extend(['-getServiceState', host])
+        output = run_as(*cmd, capture_output=True)
+    except CalledProcessError as e:
+        output = e.output  # probably "connection refused"
+    return output.strip()
+
+
 def initialize_kv_host():
     # get the hostname attrs from our local unit and update the kv store
     local_ip = resolve_private_address(hookenv.unit_private_ip())
@@ -487,32 +511,57 @@ def remove_kv_hosts(*hosts):
     unit_kv.flush(True)
 
 
-def get_ssh_key(user):
-    sshdir = Path('/home/%s/.ssh' % user)
+def ssh_key_dir(user):
+    return Path('/home/%s/.ssh' % user)
+
+
+def ssh_priv_key(user):
+    return ssh_key_dir(user) / 'id_rsa'
+
+
+def ssh_pub_key(user):
+    return ssh_key_dir(user) / 'id_rsa.pub'
+
+
+def generate_ssh_key(user):
+    if ssh_priv_key(user).exists():
+        return
+    sshdir = ssh_key_dir(user)
     if not sshdir.exists():
         host.mkdir(sshdir, owner=user, group='hadoop', perms=0o755)
-    keyfile = sshdir / 'id_rsa'
-    pubfile = sshdir / 'id_rsa.pub'
-    authfile = sshdir / 'authorized_keys'
-    if not pubfile.exists():
-        (sshdir / 'config').write_lines([
-            'Host *',
-            '    StrictHostKeyChecking no'
-        ], append=True)
-        check_call(['ssh-keygen', '-t', 'rsa', '-P', '', '-f', keyfile])
-        host.chownr(sshdir, user, 'hadoop')
+    keyfile = ssh_priv_key(user)
+    (sshdir / 'config').write_lines([
+        'Host *',
+        '    StrictHostKeyChecking no'
+    ], append=True)
+    check_call(['ssh-keygen', '-t', 'rsa', '-P', '', '-f', keyfile])
+    host.chownr(sshdir, user, 'hadoop')
+
+
+def get_ssh_key(user):
+    generate_ssh_key(user)
     # allow ssh'ing to localhost; useful for things like start_dfs.sh
+    authfile = ssh_key_dir(user) / 'authorized_keys'
     if not authfile.exists():
-        Path.copy(pubfile, authfile)
-    return pubfile.text()
+        Path.copy(ssh_pub_key(user), authfile)
+    return ssh_pub_key(user).text()
 
 
 def install_ssh_key(user, ssh_key):
-    sshdir = Path('/home/%s/.ssh' % user)
+    sshdir = ssh_key_dir(user)
     if not sshdir.exists():
         host.mkdir(sshdir, owner=user, group='hadoop', perms=0o755)
     Path(sshdir / 'authorized_keys').write_text(ssh_key, append=True)
     host.chownr(sshdir, user, 'hadoop')
+
+
+def wait_for_connect(addr, port, timeout):
+    start = time.time()
+    while time.time() - start < timeout:
+        if check_connect(addr, port):
+            return True
+        time.sleep(2)
+    raise TimeoutError('Timed-out waiting for connection to %s on port %s' % (addr, port))
 
 
 def wait_for_hdfs(timeout):
@@ -577,3 +626,4 @@ def spec_matches(local_spec, remote_spec):
         if v != remote_spec.get(k):
             return False
     return True
+
