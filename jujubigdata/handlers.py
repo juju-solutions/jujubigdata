@@ -305,13 +305,6 @@ class HDFS(object):
         if not utils.jps('DataNode'):
             self._hadoop_daemon('start', 'datanode')
 
-    def stop_journalnode(self):
-        self._hadoop_daemon('stop', 'journalnode')
-
-    def start_journalnode(self):
-        if not utils.jps('JournalNode'):
-            self._hadoop_daemon('start', 'journalnode')
-
     def restart_datanode(self):
         self.stop_datanode()
         self.start_datanode()
@@ -428,8 +421,10 @@ class HDFS(object):
         if len(namenodes) == 2:
             output = []
             for host in namenodes:
-                output.append(utils.run_as('hdfs', 'hdfs', 'haadmin', '-getServiceState', '{}'.format(leader), capture_output=True).lower())
-            if not 'active' in output:
+                output.append(utils.run_as('hdfs',
+                                           'hdfs', 'haadmin', '-getServiceState', '{}'.format(leader),
+                                           capture_output=True).lower())
+            if 'active' not in output:
                 self.transition_to_active(leader)
 
     def format_namenode(self):

@@ -626,4 +626,3 @@ def spec_matches(local_spec, remote_spec):
         if v != remote_spec.get(k):
             return False
     return True
-
