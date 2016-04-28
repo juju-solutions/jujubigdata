@@ -327,20 +327,6 @@ class HDFS(object):
         self.stop_journalnode()
         self.start_journalnode()
 
-    def _remote(self, relation):
-        """
-        Return the hostname of the unit on the other end of the given
-        relation (derived from that unit's name) and the port used to talk
-        to that unit.
-        :param str relation: Name of the relation, e.g. "datanode" or "namenode"
-        """
-        # FIXME delete when transition to layers is complete
-        unit, data = helpers.any_ready_unit(relation)
-        if not unit:
-            return None, None
-        host = unit.replace('/', '-')
-        return host, data['port']
-
     def configure_namenode(self, namenodes):
         dc = self.hadoop_base.dist_config
         clustername = hookenv.service_name()
@@ -537,23 +523,6 @@ class YARN(object):
         self.stop_nodemanager()
         self.start_nodemanager()
 
-    def _remote(self, relation):
-        """
-        Return the hostname of the unit on the other end of the given
-        relation (derived from that unit's name) and the port used to talk
-        to that unit.
-        :param str relation: Name of the relation, e.g. "resourcemanager" or "nodemanager"
-        """
-        # FIXME delete when transition to layers is complete
-        unit, data = helpers.any_ready_unit(relation)
-        if not unit:
-            return None, None
-        host = unit.replace('/', '-')
-        port = data['port']
-        history_http = data['historyserver-http']
-        history_ipc = data['historyserver-ipc']
-        return host, port, history_http, history_ipc
-
     def _local(self):
         """
         Return the local hostname (which we derive from our unit name),
@@ -586,16 +555,10 @@ class YARN(object):
             props["mapreduce.jobhistory.intermediate-done-dir"] = "/mr-history/tmp"
             props["mapreduce.jobhistory.done-dir"] = "/mr-history/done"
 
-    def configure_nodemanager(self, host=None, port=None, history_http=None, history_ipc=None):
-        if not all([host, port, history_http, history_ipc]):
-            # FIXME hack-around until transition to layers is complete
-            host, port, history_http, history_ipc = self._remote("nodemanager")
+    def configure_nodemanager(self, host, port, history_http, history_ipc):
         self.configure_yarn_base(host, port, history_http, history_ipc)
 
-    def configure_client(self, host=None, port=None, history_http=None, history_ipc=None):
-        if not all([host, port, history_http, history_ipc]):
-            # FIXME hack-around until transition to layers is complete
-            host, port, history_http, history_ipc = self._remote("resourcemanager")
+    def configure_client(self, host, port, history_http, history_ipc):
         self.configure_yarn_base(host, port, history_http, history_ipc)
 
     def configure_yarn_base(self, host, port, history_http, history_ipc):
@@ -636,10 +599,7 @@ class YARN(object):
         unitdata.kv().set('yarn.client.demo.installed', True)
         unitdata.kv().flush(True)
 
-    def register_slaves(self, slaves=None):
-        if slaves is None:  # FIXME hack-around until transition to layers is complete
-            slaves = helpers.all_ready_units('nodemanager')
-            slaves = [data['hostname'] for slave, data in slaves]
+    def register_slaves(self, slaves):
         self.hadoop_base.register_slaves(slaves)
         if utils.jps('ResourceManager'):
             self.hadoop_base.run('mapred', 'bin/yarn', 'rmadmin', '-refreshNodes')
