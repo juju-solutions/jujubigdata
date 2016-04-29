@@ -437,8 +437,8 @@ class HDFS(object):
             props['dfs.ha.fencing.ssh.private-key-files'] = utils.ssh_priv_key('hdfs')
             props['dfs.ha.namenodes.%s' % clustername] = ','.join(namenodes)
             for node in namenodes:
-                props['dfs.namenode.rpc-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, port)
-                props['dfs.namenode.http-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, webhdfs_port)
+                props['dfs.namenode.rpc-address.%s.%s' % (clustername, node)] = '%s:%s' % (node, port)
+                props['dfs.namenode.http-address.%s.%s' % (clustername, node)] = '%s:%s' % (node, webhdfs_port)
 
     def init_sharededits(self):
         self._hdfs('namenode', '-initializeSharedEdits', '-nonInteractive', '-force')
@@ -466,7 +466,7 @@ class HDFS(object):
             output = []
             for node in namenodes:
                 output.append(utils.run_as('hdfs',
-                                           'hdfs', 'haadmin', '-getServiceState', '{}'.format(leader),
+                                           'hdfs', 'haadmin', '-getServiceState', '{}'.format(node),
                                            capture_output=True).lower())
             if 'active' not in output:
                 self.transition_to_active(leader)
