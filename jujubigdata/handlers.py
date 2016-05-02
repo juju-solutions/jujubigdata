@@ -369,6 +369,10 @@ class HDFS(object):
         with utils.xmlpropmap_edit_in_place(hdfs_site) as props:
             props['dfs.namenode.datanode.registration.ip-hostname-check'] = 'true'
             props['dfs.namenode.http-address.%s.%s' % (clustername, host)] = '%s:%s' % (host, dc.port('nn_webapp_http'))
+            props['dfs.namenode.rpc-bind-host'] = '0.0.0.0'
+            props['dfs.namenode.servicerpc-bind-host'] = '0.0.0.0'
+            props['dfs.namenode.http-bind-host'] = '0.0.0.0'
+            props['dfs.namenode.https-bind-host'] = '0.0.0.0'        
         self.hadoop_base.setup_init_script("hdfs", "namenode")
 
     def configure_zookeeper(self, zookeepers):
