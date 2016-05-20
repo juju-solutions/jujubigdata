@@ -372,7 +372,7 @@ class HDFS(object):
             props['dfs.namenode.rpc-bind-host'] = '0.0.0.0'
             props['dfs.namenode.servicerpc-bind-host'] = '0.0.0.0'
             props['dfs.namenode.http-bind-host'] = '0.0.0.0'
-            props['dfs.namenode.https-bind-host'] = '0.0.0.0'        
+            props['dfs.namenode.https-bind-host'] = '0.0.0.0'
         self.hadoop_base.setup_init_script("hdfs", "namenode")
 
     def configure_zookeeper(self, zookeepers):
