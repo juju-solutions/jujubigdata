@@ -569,10 +569,14 @@ def wait_for_hdfs(timeout):
     while time.time() - start < timeout:
         try:
             output = run_as('hdfs', 'hdfs', 'dfsadmin', '-report', capture_output=True)
-            if 'Datanodes available' in output or 'Live datanodes' in output:
+            datanodes = 'Datanodes available' in output or 'Live datanodes' in output
+            output = run_as('hdfs', 'hdfs', 'dfsadmin', '-safemode', 'get',
+                            capture_output=True)
+            safemode = 'Safe mode is OFF' not in output
+            if datanodes and not safemode:
                 return True
-        except CalledProcessError as e:
-            output = e.output  # probably a "connection refused"; wait and try again
+        except CalledProcessError:
+            pass  # probably a "connection refused"; wait and try again
         time.sleep(2)
     raise TimeoutError('Timed-out waiting for HDFS:\n%s' % output)
 
