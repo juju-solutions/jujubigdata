@@ -575,8 +575,8 @@ def wait_for_hdfs(timeout):
             safemode = 'Safe mode is OFF' not in output
             if datanodes and not safemode:
                 return True
-        except CalledProcessError:
-            pass  # probably a "connection refused"; wait and try again
+        except CalledProcessError as e:
+            output = e.output  # probably a "connection refused"; wait and try again
         time.sleep(2)
     raise TimeoutError('Timed-out waiting for HDFS:\n%s' % output)
 
