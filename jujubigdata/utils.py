@@ -55,10 +55,14 @@ class DistConfig(object):
             - '<package 1>'
             - '<package 2>'
         groups:
-            - '<name>'
+            <group 1>
+                gid: 9001
+            <group 2>
+                gid: 9002
         users:
             <user 1>:
                 groups: ['<primary>', '<group>', '<group>']
+                uid: 9001
             <user 2>:
                 groups: ['<primary>']
         dirs:
@@ -94,7 +98,7 @@ class DistConfig(object):
             self.yaml_file = None
             self.dist_config = data
 
-        self.groups = []
+        self.groups = {}
         self.users = {}
         for opt in self.dist_config.keys():
             setattr(self, opt, self.dist_config[opt])
@@ -137,18 +141,25 @@ class DistConfig(object):
             fetch.apt_install(self.packages)
 
     def add_users(self):
-        for group in self.groups:
-            host.add_group(group)
+        for group in groups:
+            group_splt = group.split(',')
+            group_name = group_splt[0]
+            gid = None
+            if len(group_splt) > 1:
+                gid = group_splt[1]
+            host.add_group(group_name, gid=gid)
         for username, details in self.users.items():
             primary_grp = None
             secondary_grps = None
             groups = details.get('groups', [])
+            uid = details.get('uid', None)
             if groups:
                 primary_grp = groups[0]
                 secondary_grps = groups[1:]
             hookenv.log('Creating user {0} in primary group {1} and secondary groups {2}'
                         .format(username, primary_grp, secondary_grps))
-            host.adduser(username, primary_group=primary_grp, secondary_groups=secondary_grps)
+            host.adduser(username, uid=uid, primary_group=primary_grp, 
+                         secondary_groups=secondary_grps)
 
     def remove_dirs(self):
         # TODO: no removal function exists in CH, just log what we would do.
