@@ -55,10 +55,8 @@ class DistConfig(object):
             - '<package 1>'
             - '<package 2>'
         groups:
-            <group 1>
-                gid: 9001
-            <group 2>
-                gid: 9002
+            - '<name>'
+            - '<name>,<gid>'
         users:
             <user 1>:
                 groups: ['<primary>', '<group>', '<group>']
