@@ -8,3 +8,6 @@ docs/_build
 .unit-state.db
 *.pyc
 __pycache__
+#Emacs temp files
+*~
+*#*
