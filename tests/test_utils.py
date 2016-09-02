@@ -142,11 +142,11 @@ class TestUtils(unittest.TestCase):
 
         # Uncomment and replace with your local ethernet or wireless
         # interface for extra testing/paranoia.
-        ip = utils.get_ip_for_interface('enp4s0')
-        self.assertEqual(ip, '192.168.1.238')
+        # ip = utils.get_ip_for_interface('enp4s0')
+        # self.assertEqual(ip, '192.168.1.238')
 
-        ip = utils.get_ip_for_interface('192.168.1.0/24')
-        self.assertEqual(ip, '192.168.1.238')
+        # ip = utils.get_ip_for_interface('192.168.1.0/24')
+        # self.assertEqual(ip, '192.168.1.238')
 
 if __name__ == '__main__':
     unittest.main()
