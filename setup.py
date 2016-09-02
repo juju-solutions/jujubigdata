@@ -21,6 +21,7 @@ SETUP = {
         "jujuresources>=0.2.5",
         "setuptools-scm>=1.0.0,<2.0.0",  # needed by path.py (see pypa/pip#410)
         "charms.templating.jinja2>=1.0.0,<2.0.0",
+        "netifaces==0.10.4"
     ],
     'packages': [
         "jujubigdata",

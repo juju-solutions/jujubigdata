@@ -16,6 +16,8 @@ import time
 import yaml
 import socket
 import subprocess
+import ipaddress
+import netifaces
 from contextlib import contextmanager
 from subprocess import check_call, check_output, CalledProcessError, Popen
 from xml.etree import ElementTree as ET
@@ -28,6 +30,10 @@ from charmhelpers.core import unitdata
 from charmhelpers.core import hookenv
 from charmhelpers.core import host
 from charmhelpers import fetch
+
+
+class BigDataError(Exception):
+    pass
 
 
 class DistConfig(object):
@@ -630,3 +636,66 @@ def spec_matches(local_spec, remote_spec):
         if v != remote_spec.get(k):
             return False
     return True
+
+
+def get_ip_for_interface(network_interface, ip_version=4):
+    """
+    Helper to return the ip address of this machine on a specific
+    interface.
+
+    @param str network_interface: either the name of the
+    interface, or a CIDR range, in which we expect the interface's
+    ip to fall. Also accepts 0.0.0.0 (and variants, like 0/0) as a
+    special case, which will simply return what you passed in.
+
+    """
+    def u(s):
+        """Force unicode."""
+
+        return getattr(s, 'decode', lambda e: s)('utf-8')
+
+    interfaces = netifaces.interfaces()
+
+    # Handle the simple case, where the user passed in an interface name.
+    if network_interface in interfaces:
+        for af_inet in (netifaces.AF_INET, netifaces.AF_INET6):
+            for interface in netifaces.ifaddresses(network_interface).get(af_inet, []):
+                try:
+                    ipaddress.ip_interface(u(interface['addr']))
+                    return str(interface['addr'])
+                except ValueError:
+                    if not interface['addr'].startswith('fe80'):
+                        hookenv.log("Got an unexpected ValueError parsing {}. Continuing to search for a valid interface.".format(interface['addr']))
+                    continue
+
+    # Kevin says this works
+    if network_interface == '0/0':
+        return network_interface
+
+    try:
+        subnet = ipaddress.ip_interface(u(network_interface)).network
+    except ValueError:
+        raise BigDataError(
+            u"This machine does not have an interface '{}'".format(
+                network_interface))
+
+    # Handle the case where 0.0.0.0 or similar was passed in -- in
+    # this case, we want to simply return it.
+    if subnet.is_unspecified or network_interface == '0.0.0.0/0':
+        return network_interface
+
+    # Config specified a CIDR range; find an interface in that range.
+    for interface in interfaces:
+        af_inet = netifaces.AF_INET if subnet.version == 4 else netifaces.AF_INET6
+        for addr in netifaces.ifaddresses(interface).get(af_inet, []):
+            try:
+                if ipaddress.ip_interface(u(addr['addr'])) in subnet:
+                    return addr['addr']
+            except ValueError:
+                if not addr['addr'].startswith('fe80'):
+                    hookenv.log("Got an unexpected ValueError parsing {}. Continuing to search for a valid interface.".format(addr['addr']))
+                continue
+
+    raise BigDataError(
+        u"This machine has no interfaces in CIDR range {}".format(
+            network_interface))
