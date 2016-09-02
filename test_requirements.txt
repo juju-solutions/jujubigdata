@@ -12,3 +12,5 @@ flake8
 PyYAML==3.10       # precise
 path.py>=7.0
 jujuresources>=0.2.5
+netifaces==0.10.4
+
