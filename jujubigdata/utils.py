@@ -649,55 +649,46 @@ def get_ip_for_interface(network_interface):
     special case, which will simply return what you passed in.
 
     """
+    def u(s):
+        """Force unicode."""
+
+        return getattr(s, 'decode', lambda e: s)('utf-8')
+
+    # Allow users to reset the charm to listening on any
+    # interface.  Allow operators to specify this however they
+    # wish (0.0.0.0, ::, 0/0, etc.).
     if network_interface.startswith('0') or network_interface == '::':
-        # Allow users to reset the charm to listening on any
-        # interface.  Allow operators to specify this however they
-        # wish (0.0.0.0, ::, 0/0, etc.).
         return network_interface
 
-    # Is this a CIDR range, or an interface name?
-    is_cidr = len(network_interface.split(".")) == 4 or len(
-        network_interface.split(":")) == 8
+    # Handle the case where the user passed in a CIDR.
+    is_ipv4_cidr = len(network_interface.split(".")) == 4
+    is_ipv6_cidr = len(network_interface.split(":")) == 8
 
-    if is_cidr:
+    if is_ipv4_cidr or is_ipv6_cidr:
         interfaces = netifaces.interfaces()
+        af_inet = netifaces.AF_INET if is_ipv4_cidr else netifaces.AF_INET6
+
         for interface in interfaces:
-            for ip_version in netifaces.AF_INET, netifaces.AF_INET6:
-                try:
-                    ip = netifaces.ifaddresses(
-                        interface)[ip_version][0]['addr']
-                except KeyError:
-                    continue
-
-                if ip.startswith('fe80'):
-                    # ipaddress doesn't consider fe80::... to be an ip
-                    # address, even though interfaces on physical
-                    # hardware will list this as their ipv6 ip. Just
-                    # skip over this issue for now.
-                    continue
-
-                # Check to see if the ip address is in the
-                # range. Include a rather silly hack to make ipaddress
-                # happy with the unicode string it expects in both
-                # Python 2 and 3. (TODO: import unicode_literals from
-                # __future__, and verify that it doesn't break other
-                # things in this module.)
-                if ipaddress.ip_address(
-                        ip.encode('utf-8').decode('utf-8')
-                ) in ipaddress.ip_network(
-                    network_interface.encode('utf-8').decode('utf-8')
-                ):
-                    return ip
+            for addr in netifaces.ifaddresses(interface).get(af_inet, []):
+                ip = addr['addr']
+                if len(ip.split("/")) > 1:
+                    # local ipv6 address on a physical machine is
+                    # expressed as a cidr range.
+                    ip = ipaddress.ip_network(u(ip))
+                else:
+                    ip = ipaddress.ip_address(u(ip))
+                if ip in ipaddress.ip_network(u(network_interface)):
+                    return str(ip)
 
         raise BigDataError(
             u"This machine has no interfaces in CIDR range {}".format(
                 network_interface))
-    else:
-        try:
-            ip = netifaces.ifaddresses(network_interface)[netifaces.AF_INET][0]['addr']
-        except ValueError:
-            raise BigDataError(
-                u"This machine does not have an interface '{}'".format(
-                    network_interface))
-        return ip
 
+    # Handle the simple case, where the user passed in an interface name.
+    try:
+        ip = netifaces.ifaddresses(network_interface)[netifaces.AF_INET][0]['addr']
+    except ValueError:
+        raise BigDataError(
+            u"This machine does not have an interface '{}'".format(
+                network_interface))
+    return ip
