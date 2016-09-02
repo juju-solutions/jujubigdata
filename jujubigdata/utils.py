@@ -665,7 +665,7 @@ def get_ip_for_interface(network_interface, ip_version=4):
                     return str(interface['addr'])
                 except ValueError:
                     if not interface['addr'].startswith('fe80'):
-                        hookenv.log("Got an unexpected ValueError parsing {}. Continuing to search for a valid interface.".format(addr['addr']))
+                        hookenv.log("Got an unexpected ValueError parsing {}. Continuing to search for a valid interface.".format(interface['addr']))
                     continue
 
     # Kevin says this works
