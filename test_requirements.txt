@@ -9,6 +9,6 @@ flake8
 -e bzr+http://bazaar.launchpad.net/~bigdata-dev/charm-helpers/framework/#egg=charmhelpers
 #
 # Specify precise versions of runtime dependencies where possible.
-PyYAML==3.10       # precise
+PyYAML==5.1       # precise
 path.py>=7.0
 jujuresources>=0.2.5
